@@ -1,0 +1,35 @@
+<div class="card widget challenge-widget">
+  <div class="row widget-head">
+    <strong>🛡️ Challenge of the day</strong>
+    {% if ch_today %}<span class="badge">{{ ch_today.kind_label }}</span>{% endif %}
+    <span class="push-right small muted">
+      {% if ch_streak %}🔥 {{ ch_streak }}-day streak · {% endif %}<a href="/challenge">Leaderboard &amp; archive</a>
+    </span>
+  </div>
+  {% if not ch_today %}
+  <p class="muted small empty">No challenges loaded.</p>
+  {% elif ch_attempt %}
+  <div class="ch-question">{{ ch_today.question }}</div>
+  <div class="ch-result {{ 'ch-correct' if ch_attempt.correct else 'ch-wrong' }}">
+    {% if ch_attempt.correct %}✅ Correct!{% else %}❌ Not quite — you answered “{{ ch_attempt.answer }}”.{% endif %}
+    {% if not ch_attempt.correct or not ch_today.option_list %}
+    <div><strong>Answer:</strong> {{ ch_attempt.correct_answer.split('|')[0] }}</div>
+    {% endif %}
+  </div>
+  <p class="small muted ch-explain">{{ ch_attempt.explanation }}</p>
+  <p class="small muted">Come back tomorrow for the next one.</p>
+  {% else %}
+  <div class="ch-question">{{ ch_today.question }}</div>
+  <form method="post" action="/challenge/answer" class="stack ch-form">
+    <input type="hidden" name="next_url" value="{{ next_url | default('/') }}">
+    {% if ch_today.option_list %}
+    {% for opt in ch_today.option_list %}
+    <label class="ch-option"><input type="radio" name="guess" value="{{ opt }}" required> {{ opt }}</label>
+    {% endfor %}
+    {% else %}
+    <input type="text" name="guess" placeholder="Your answer…" autocomplete="off" required>
+    {% endif %}
+    <button class="primary">Submit — one shot per day</button>
+  </form>
+  {% endif %}
+</div>

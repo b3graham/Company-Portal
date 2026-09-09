@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if doc else 'New' }} doc · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Edit: ' + doc.title if doc else 'New ' + ('company' if cat == 'company' else 'working') + ' doc' }}</h1>
+</div>
+
+<form method="post" action="{{ '/docs/' + (doc.id | string) + '/edit' if doc else '/docs/new' }}" class="stack editor">
+  {% if not doc %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+  <input type="text" name="title" value="{{ doc.title if doc else '' }}" placeholder="Title" required>
+  <label>Folder
+    <select name="folder_id">
+      <option value="">No folder</option>
+      {% for f in folders %}
+      <option value="{{ f.id }}"
+        {% if (doc and doc.folder_id == f.id) or (not doc and preselect == f.id) %}selected{% endif %}>
+        📁 {{ f.name }}{% if f.restricted %} 🔒{% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <textarea id="editor-content" name="content" rows="20"
+            placeholder="Write in markdown — # headings, **bold**, - lists, tables, ```code```">{{ doc.content if doc else '' }}</textarea>
+  <div id="preview" class="md preview" hidden></div>
+  <div class="row">
+    <button class="primary">Save</button>
+    <button type="button" id="preview-toggle" class="secondary">Preview</button>
+    <a class="button secondary" href="{{ '/docs/' + (doc.id | string) if doc else '/docs?cat=' + cat }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

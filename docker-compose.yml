@@ -1,0 +1,13 @@
+services:
+  portal:
+    build: .
+    container_name: portal
+    restart: unless-stopped
+    environment:
+      - PORTAL_NAME=Stone Knight
+      - SECURE_COOKIES=1
+    # Bind to localhost only — Caddy is the public entrance.
+    ports:
+      - "127.0.0.1:8100:8000"
+    volumes:
+      - ./data:/data

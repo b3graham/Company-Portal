@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Version · {{ doc.title }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ version.title }} <span class="badge">version from {{ version.saved_at[:16].replace('T', ' ') }}</span></h1>
+  <form method="post" action="/docs/{{ doc.id }}/versions/{{ version.id }}/restore"
+        data-confirm="Restore this version? The current content stays in history.">
+    <button class="primary">Restore this version</button>
+  </form>
+</div>
+<div class="meta">saved by {{ version.author or '—' }} · <a href="/docs/{{ doc.id }}">back to current version</a></div>
+<article class="card md">{{ version.content | md | safe }}</article>
+{% endblock %}

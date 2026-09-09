@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Projects · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Project board</h1>
+</div>
+
+{% include "_crm_tabs.html" %}
+
+<details class="composer">
+  <summary>＋ Add a project</summary>
+  <form method="post" action="/crm/projects/add" class="stack">
+    <div class="field-grid">
+      <label>Project <input type="text" name="name" required></label>
+      <label>Entity
+        <select name="entity_id">
+          <option value="">—</option>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Contact
+        <select name="contact_id">
+          <option value="">—</option>
+          {% for c in contacts %}<option value="{{ c.id }}">{{ c.name }}{% if c.company %} ({{ c.company }}){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Due date <input type="date" name="due_date"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Add project</button>
+  </form>
+</details>
+
+<div class="kanban cols4">
+  {% for status in statuses %}
+  <div class="kanban-col">
+    <h2>{{ project_labels[status] }} <span class="badge">{{ columns[status] | length }}</span></h2>
+    {% for p in columns[status] %}
+    <div class="task-card">
+      <div class="task-title">{{ p.name }}</div>
+      <div class="small muted">
+        {% if p.entity %}<span class="badge">{{ p.entity }}</span>{% endif %}
+        {% if p.contact_name %}👤 {{ p.contact_name }}{% endif %}
+      </div>
+      {% if p.due_date %}
+      <div class="small {{ 'overdue' if p.due_date < today and status != 'done' else 'muted' }}">📅 due {{ p.due_date }}</div>
+      {% endif %}
+      {% if p.notes %}<div class="muted small">{{ p.notes }}</div>{% endif %}
+      <div class="row task-actions">
+        {% if status != 'planned' %}
+        <form method="post" action="/crm/projects/{{ p.id }}/move">
+          <input type="hidden" name="direction" value="prev"><button title="Move left">◀</button>
+        </form>
+        {% endif %}
+        {% if status != 'done' %}
+        <form method="post" action="/crm/projects/{{ p.id }}/move">
+          <input type="hidden" name="direction" value="next"><button title="Move right">▶</button>
+        </form>
+        {% endif %}
+        <a class="small push-right" href="/crm/projects/{{ p.id }}/edit">Edit</a>
+        <form method="post" action="/crm/projects/{{ p.id }}/delete" data-confirm="Delete this project?">
+          <button class="danger-link">✕</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted small empty">Nothing here.</p>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

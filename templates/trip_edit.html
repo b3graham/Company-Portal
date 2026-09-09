@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Edit trip · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit trip</h1>
+  <a class="button" href="/expenses/mileage">← Back to mileage</a>
+</div>
+
+<div class="card narrow">
+  <form method="post" action="/expenses/mileage/{{ trip.id }}/edit" class="stack">
+    <label>Date <input type="date" name="date" value="{{ trip.date }}" required></label>
+    <label>Entity
+      <select name="entity_id" required>
+        {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == trip.entity_id }}>{{ e.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Vehicle
+      <select name="vehicle_id">
+        <option value="">—</option>
+        {% for v in vehicles %}<option value="{{ v.id }}" {{ 'selected' if v.id == trip.vehicle_id }}>{{ v.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>From <input type="text" name="from_place" value="{{ trip.from_place }}" list="places"></label>
+    <label>To <input type="text" name="to_place" value="{{ trip.to_place }}" list="places"></label>
+    <label>Total miles <input type="text" name="miles" inputmode="decimal" value="{{ trip.miles }}" required></label>
+    <label>Notes <input type="text" name="notes" value="{{ trip.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+  <datalist id="places">
+    {% for p in places %}<option value="{{ p }}">{% endfor %}
+  </datalist>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Edit expense · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit expense</h1>
+  <a class="button" href="/expenses">← Back to expenses</a>
+</div>
+
+<div class="card narrow">
+  <form method="post" action="/expenses/entry/{{ exp.id }}/edit" enctype="multipart/form-data" class="stack">
+    <label>Date <input type="date" name="date" value="{{ exp.date }}" required></label>
+    <label>Entity
+      <select name="entity_id" required>
+        {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == exp.entity_id }}>{{ e.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Merchant <input type="text" name="merchant" value="{{ exp.merchant }}" required></label>
+    <label>Amount <input type="text" name="amount" inputmode="decimal" value="{{ '%.2f' | format(exp.amount_cents / 100) }}" required></label>
+    <label>Category
+      <select name="category_id">
+        <option value="">—</option>
+        {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if c.id == exp.category_id }}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Payment
+      <select name="payment_id">
+        <option value="">—</option>
+        {% for p in payments %}<option value="{{ p.id }}" {{ 'selected' if p.id == exp.payment_id }}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Tags <input type="text" name="tags" value="{{ exp.tags }}" placeholder="comma, separated"></label>
+    <label>Notes <input type="text" name="notes" value="{{ exp.notes }}"></label>
+    <label>Receipt
+      {% if exp.receipt_name %}
+      <span class="small">Current: <a href="/expenses/entry/{{ exp.id }}/receipt">📎 {{ exp.receipt_orig or 'receipt' }}</a></span>
+      {% endif %}
+      <input type="file" name="receipt" accept="image/*,.pdf,.heic">
+    </label>
+    {% if exp.receipt_name %}
+    <label class="row"><input type="checkbox" name="remove_receipt" value="1" class="inline-check"> Remove current receipt</label>
+    {% endif %}
+    <button class="primary">Save changes</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ portal_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+</head>
+<body>
+{% if user %}
+<div class="layout">
+  <aside class="sidebar">
+    <a href="/" class="brand">
+      <img src="/static/icon.png" alt="SKS logo">
+      <span>{{ portal_name }}</span>
+    </a>
+    <nav>
+      <a href="/" class="{{ 'active' if request.url.path == '/' }}">🏠 Home</a>
+      <a href="/docs?cat=working" class="{{ 'active' if request.url.path.startswith('/docs') }}">📄 Docs</a>
+      <a href="/tasks" class="{{ 'active' if request.url.path.startswith('/tasks') }}">📋 Tasks</a>
+      <a href="/crm/leads" class="{{ 'active' if request.url.path.startswith('/crm') }}">🎯 CRM</a>
+      <a href="/challenge" class="{{ 'active' if request.url.path.startswith('/challenge') }}">🛡️ Challenge</a>
+      <a href="/team" class="{{ 'active' if request.url.path.startswith('/team') }}">👥 Team</a>
+      <a href="/links" class="{{ 'active' if request.url.path.startswith('/links') }}">🔗 Links</a>
+      {% if user.role == 'admin' %}
+      <a href="/expenses" class="{{ 'active' if request.url.path.startswith('/expenses') }}">💰 Expenses</a>
+      <a href="/admin/users" class="{{ 'active' if request.url.path.startswith('/admin/users') }}">⚙️ Users</a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/profile">{{ user.name }}</a>
+      <form method="post" action="/logout"><button class="linklike">Sign out</button></form>
+    </div>
+  </aside>
+  <main class="content">
+    <div class="clock-float">
+      <span id="clock-time">--:--:--</span>
+      <span id="clock-date"></span>
+    </div>
+    {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<main class="auth-page">
+  {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+  {% block auth_content %}{% endblock %}
+</main>
+{% endif %}
+<script src="/static/portal.js"></script>
+</body>
+</html>

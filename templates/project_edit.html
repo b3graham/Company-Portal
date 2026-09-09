@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Edit project · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit project</h1>
+  <a class="button" href="/crm/projects">← Back to board</a>
+</div>
+
+<div class="card narrow">
+  <form method="post" action="/crm/projects/{{ project.id }}/edit" class="stack">
+    <label>Project <input type="text" name="name" value="{{ project.name }}" required></label>
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == project.status }}>{{ project_labels[s] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Entity
+      <select name="entity_id">
+        <option value="">—</option>
+        {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == project.entity_id }}>{{ e.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Contact
+      <select name="contact_id">
+        <option value="">—</option>
+        {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if c.id == project.contact_id }}>{{ c.name }}{% if c.company %} ({{ c.company }}){% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Due date <input type="date" name="due_date" value="{{ project.due_date }}"></label>
+    <label>Notes <input type="text" name="notes" value="{{ project.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Users · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>User management</h1></div>
+
+{% if new_password %}
+<div class="flash important">
+  Temporary password for <strong>{{ new_password_for }}</strong>: <code>{{ new_password }}</code><br>
+  <span class="small">Share it with them securely — it is shown only once. They can change it under Profile.</span>
+</div>
+{% endif %}
+
+<table class="list">
+  <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+  {% for u in users %}
+  <tr class="{{ 'inactive' if not u.active }}">
+    <td>{{ u.name }}{% if u.title %} <span class="muted small">({{ u.title }})</span>{% endif %}</td>
+    <td>{{ u.email }}</td>
+    <td>{{ u.role }}</td>
+    <td>{{ 'active' if u.active else 'deactivated' }}</td>
+    <td class="row">
+      <form method="post" action="/admin/users/{{ u.id }}/reset" data-confirm="Reset password for {{ u.email }}?">
+        <button>Reset password</button>
+      </form>
+      {% if u.id != user.id %}
+      <form method="post" action="/admin/users/{{ u.id }}/toggle"
+            data-confirm="{{ 'Reactivate' if not u.active else 'Deactivate' }} {{ u.email }}?">
+        <button>{{ 'Reactivate' if not u.active else 'Deactivate' }}</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2 class="section">Add a user</h2>
+<div class="card narrow">
+  <form method="post" action="/admin/users" class="stack">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Email <input type="email" name="email" required></label>
+    <label>Job title <input type="text" name="title"></label>
+    <label>Role
+      <select name="role">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select>
+    </label>
+    <button class="primary">Create user</button>
+    <p class="muted small">A temporary password is generated and shown once after creation.</p>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+<form method="get" action="{{ filter_action }}" class="filterbar">
+  <input type="hidden" name="range" value="custom">
+  <label class="filter-field">From <input type="date" name="start" value="{{ start }}"></label>
+  <label class="filter-field">To <input type="date" name="end" value="{{ end }}"></label>
+  <select name="entity" class="filter-entity">
+    <option value="">All entities</option>
+    {% for e in entities %}
+    <option value="{{ e.id }}" {{ 'selected' if e.id == entity_id }}>{{ e.name }}</option>
+    {% endfor %}
+  </select>
+  <button>Apply</button>
+  <span class="quick-ranges small">
+    <a href="{{ filter_action }}{{ ('?entity=' ~ entity_id) if entity_id else '' }}">This month</a>
+    <a href="{{ filter_action }}?range=last{{ ('&entity=' ~ entity_id) if entity_id else '' }}">Last month</a>
+    <a href="{{ filter_action }}?range=ytd{{ ('&entity=' ~ entity_id) if entity_id else '' }}">YTD</a>
+    <a href="{{ filter_action }}?range=all{{ ('&entity=' ~ entity_id) if entity_id else '' }}">All time</a>
+  </span>
+</form>

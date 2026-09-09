@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Mileage · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Mileage</h1>
+  <div class="row">
+    <a class="button secondary" href="/expenses/export/mileage.csv{{ qs }}">⬇ CSV</a>
+    <a class="button secondary" href="/expenses/report.pdf{{ qs }}">⬇ PDF report</a>
+  </div>
+</div>
+
+{% include "_expense_tabs.html" %}
+{% set filter_action = "/expenses/mileage" %}
+{% include "_expense_filters.html" %}
+
+<details class="composer">
+  <summary>＋ Log a trip</summary>
+  <form method="post" action="/expenses/mileage/add" class="stack">
+    <div class="field-grid">
+      <label>Date <input type="date" name="date" value="{{ today }}" required></label>
+      <label>Entity
+        <select name="entity_id" required>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Vehicle
+        <select name="vehicle_id">
+          <option value="">—</option>
+          {% for v in vehicles %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Miles <input type="text" name="miles" inputmode="decimal" placeholder="0.0" required></label>
+      <label>From <input type="text" name="from_place" list="places" placeholder="Start"></label>
+      <label>To <input type="text" name="to_place" list="places" placeholder="Destination"></label>
+    </div>
+    <label class="row"><input type="checkbox" name="round_trip" value="1" class="inline-check"> Round trip — double the miles entered</label>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Log trip</button>
+  </form>
+  <datalist id="places">
+    {% for p in places %}<option value="{{ p }}">{% endfor %}
+  </datalist>
+</details>
+
+<div class="row list-summary">
+  <span class="push-right"><strong>{{ rows | length }}</strong> trip{{ '' if rows|length == 1 else 's' }} · <strong>{{ '{:,}'.format(total_miles) }}</strong> miles</span>
+</div>
+
+<table class="list">
+  <tr><th>Date</th><th>Entity</th><th>Vehicle</th><th>Trip</th><th>Miles</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td class="nowrap">{{ r.date }}</td>
+    <td>{{ r.entity }}</td>
+    <td>{{ r.vehicle or '' }}</td>
+    <td>
+      {{ r.from_place }} {{ '⇄' if r.round_trip else '→' }} {{ r.to_place }}
+      {% if r.notes %}<div class="muted small">{{ r.notes }}</div>{% endif %}
+    </td>
+    <td class="num"><strong>{{ '{:,}'.format(r.miles) }}</strong></td>
+    <td class="nowrap">
+      <a class="small" href="/expenses/mileage/{{ r.id }}/edit">Edit</a>
+      <form method="post" action="/expenses/mileage/{{ r.id }}/delete" class="inline-form" data-confirm="Delete this trip?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted empty">No trips for this period.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

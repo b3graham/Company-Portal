@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Expenses · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Expenses</h1>
+  <div class="row">
+    <a class="button secondary" href="/expenses/export/expenses.csv{{ qs }}">⬇ CSV</a>
+    <a class="button secondary" href="/expenses/report.pdf{{ qs }}">⬇ PDF report</a>
+  </div>
+</div>
+
+{% include "_expense_tabs.html" %}
+{% set filter_action = "/expenses" %}
+{% include "_expense_filters.html" %}
+
+<details class="composer">
+  <summary>＋ Add an expense</summary>
+  <form method="post" action="/expenses/add" enctype="multipart/form-data" class="stack">
+    <div class="field-grid">
+      <label>Date <input type="date" name="date" value="{{ today }}" required></label>
+      <label>Entity
+        <select name="entity_id" required>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Merchant <input type="text" name="merchant" placeholder="Where you paid" required></label>
+      <label>Amount <input type="text" name="amount" inputmode="decimal" placeholder="0.00" required></label>
+      <label>Category
+        <select name="category_id">
+          <option value="">—</option>
+          {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Payment
+        <select name="payment_id">
+          <option value="">—</option>
+          {% for p in payments %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Tags <input type="text" name="tags" placeholder="comma, separated"></label>
+      <label>Receipt <input type="file" name="receipt" accept="image/*,.pdf,.heic"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Add expense</button>
+  </form>
+</details>
+
+<div class="row list-summary">
+  <form method="get" action="/expenses" class="searchbar">
+    {% if start %}<input type="hidden" name="start" value="{{ start }}">{% endif %}
+    {% if end %}<input type="hidden" name="end" value="{{ end }}">{% endif %}
+    {% if all_time %}<input type="hidden" name="range" value="all">{% endif %}
+    {% if entity_id %}<input type="hidden" name="entity" value="{{ entity_id }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search merchant, tags, notes…">
+  </form>
+  <span class="push-right"><strong>{{ rows | length }}</strong> expense{{ '' if rows|length == 1 else 's' }} · <strong>{{ total | money }}</strong></span>
+</div>
+
+<table class="list">
+  <tr><th>Date</th><th>Entity</th><th>Merchant</th><th>Category</th><th>Amount</th><th>Payment</th><th>Tags</th><th></th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td class="nowrap">{{ r.date }}</td>
+    <td>{{ r.entity }}</td>
+    <td>
+      {{ r.merchant }}
+      {% if r.notes %}<div class="muted small">{{ r.notes }}</div>{% endif %}
+    </td>
+    <td>{{ r.category or '' }}</td>
+    <td class="num"><strong>{{ r.amount_cents | money }}</strong></td>
+    <td>{{ r.payment or '' }}</td>
+    <td>
+      {% for t in r.tags.split(',') if t.strip() %}<span class="badge">{{ t.strip() }}</span> {% endfor %}
+    </td>
+    <td>{% if r.receipt_name %}<a href="/expenses/entry/{{ r.id }}/receipt" title="View receipt">📎</a>{% endif %}</td>
+    <td class="nowrap">
+      <a class="small" href="/expenses/entry/{{ r.id }}/edit">Edit</a>
+      <form method="post" action="/expenses/entry/{{ r.id }}/delete" class="inline-form" data-confirm="Delete this expense?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="muted empty">No expenses for this period.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,5 @@
+# Snippet for your existing Caddyfile.
+# The portal has its own login system, so no basic_auth needed here.
+portal.stone-knight.com {
+    reverse_proxy 127.0.0.1:8100
+}

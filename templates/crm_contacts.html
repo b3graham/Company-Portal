@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Contacts · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Key contacts</h1>
+</div>
+
+{% include "_crm_tabs.html" %}
+
+<details class="composer">
+  <summary>＋ Add a contact</summary>
+  <form method="post" action="/crm/contacts/add" class="stack">
+    <div class="field-grid">
+      <label>Name <input type="text" name="name" required></label>
+      <label>Company <input type="text" name="company"></label>
+      <label>Title <input type="text" name="title"></label>
+      <label>Email <input type="email" name="email"></label>
+      <label>Phone <input type="text" name="phone"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Add contact</button>
+  </form>
+</details>
+
+<form method="get" action="/crm/contacts" class="searchbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name, company, email…">
+</form>
+
+<table class="list">
+  <tr><th>Name</th><th>Company</th><th>Title</th><th>Email</th><th>Phone</th><th>Linked</th><th></th></tr>
+  {% for c in rows %}
+  <tr>
+    <td>
+      <strong>{{ c.name }}</strong>
+      {% if c.notes %}<div class="muted small">{{ c.notes }}</div>{% endif %}
+    </td>
+    <td>{{ c.company }}</td>
+    <td>{{ c.title }}</td>
+    <td>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}</td>
+    <td class="nowrap">{% if c.phone %}<a href="tel:{{ c.phone }}">{{ c.phone }}</a>{% endif %}</td>
+    <td class="small muted nowrap">
+      {% if c.n_leads %}{{ c.n_leads }} lead{{ '' if c.n_leads == 1 else 's' }}{% endif %}
+      {% if c.n_leads and c.n_projects %} · {% endif %}
+      {% if c.n_projects %}{{ c.n_projects }} project{{ '' if c.n_projects == 1 else 's' }}{% endif %}
+    </td>
+    <td class="nowrap">
+      <a class="small" href="/crm/contacts/{{ c.id }}/edit">Edit</a>
+      <form method="post" action="/crm/contacts/{{ c.id }}/delete" class="inline-form"
+            data-confirm="Delete {{ c.name }}? Linked leads and projects keep their other details.">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted empty">{{ 'No matches.' if q else 'No contacts yet.' }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

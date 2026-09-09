@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Expense settings · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Expense settings</h1>
+</div>
+
+{% include "_expense_tabs.html" %}
+<p class="muted small">Entities, vehicles, categories, and payment methods used on expense and mileage entries.
+Items already used by entries can't be deleted — deactivate them to hide them from the forms instead.</p>
+
+<div class="settings-grid">
+  {% for g in groups %}
+  <div class="card">
+    <div class="card-head"><h2>{{ g.label }}</h2></div>
+    {% for item in g.entries %}
+    <div class="setting-row {{ 'inactive-item' if not item.active }}">
+      <form method="post" action="/expenses/settings/item/{{ item.id }}/rename" class="row rename-form">
+        <input type="text" name="name" value="{{ item.name }}" required>
+        <button title="Rename">💾</button>
+      </form>
+      <form method="post" action="/expenses/settings/item/{{ item.id }}/toggle" class="inline-form">
+        <button class="small" title="{{ 'Hide from forms' if item.active else 'Show in forms' }}">{{ 'Deactivate' if item.active else 'Activate' }}</button>
+      </form>
+      {% if not item.in_use %}
+      <form method="post" action="/expenses/settings/item/{{ item.id }}/delete" class="inline-form" data-confirm="Delete '{{ item.name }}'?">
+        <button class="danger-link">✕</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <form method="post" action="/expenses/settings/{{ g.kind }}/add" class="row add-item">
+      <input type="text" name="name" placeholder="Add new…" required>
+      <button class="primary">Add</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

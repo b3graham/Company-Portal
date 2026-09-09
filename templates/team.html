@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Team · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Team</h1>
+</div>
+
+<div class="grid">
+  {% for m in members %}
+  <div class="card person">
+    <div class="avatar">{{ m.name[:1] | upper }}</div>
+    <div>
+      <div class="person-name">{{ m.name }}{% if m.role == 'admin' %} <span class="badge">admin</span>{% endif %}</div>
+      {% if m.title %}<div class="muted">{{ m.title }}</div>{% endif %}
+      <div class="small"><a href="mailto:{{ m.email }}">{{ m.email }}</a>{% if m.phone %} · {{ m.phone }}{% endif %}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="section">Your onboarding checklist</h2>
+{% if items %}
+<div class="card">
+  {% for i in items %}
+  <form method="post" action="/onboarding/{{ i.id }}/toggle" class="check-row">
+    <button class="checkbox {{ 'checked' if i.id in done }}">{{ '✓' if i.id in done else '' }}</button>
+    <span class="{{ 'struck' if i.id in done }}">{{ i.label }}</span>
+    {% if i.detail %}<span class="muted small">— {{ i.detail }}</span>{% endif %}
+    {% if user.role == 'admin' %}
+    <button formaction="/admin/onboarding/{{ i.id }}/delete" class="danger-link push-right"
+            formmethod="post" title="Remove item">✕</button>
+    {% endif %}
+  </form>
+  {% endfor %}
+  <div class="meta">{{ done | length }} of {{ items | length }} complete</div>
+</div>
+{% else %}
+<p class="muted empty">No onboarding items defined yet.{% if user.role == 'admin' %} Add the first one below — accounts to create, policies to read, people to meet.{% endif %}</p>
+{% endif %}
+
+{% if user.role == 'admin' %}
+<details class="composer">
+  <summary>＋ Add onboarding item (admin)</summary>
+  <form method="post" action="/admin/onboarding" class="stack">
+    <input type="text" name="label" placeholder="e.g. Read the company handbook" required>
+    <input type="text" name="detail" placeholder="Detail / where to find it (optional)">
+    <button class="primary">Add item</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

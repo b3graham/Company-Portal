@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Links · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Quick links</h1>
+</div>
+
+<details class="composer">
+  <summary>＋ Add a link</summary>
+  <form method="post" action="/links" class="stack">
+    <input type="text" name="title" placeholder="Name" required>
+    <input type="text" name="url" placeholder="https://…" required>
+    <input type="text" name="note" placeholder="Description (optional)">
+    <input type="text" name="category" placeholder="Category (default: General)">
+    <button class="primary">Add link</button>
+  </form>
+</details>
+
+{% for category, items in groups.items() %}
+<h2 class="section">{{ category }}</h2>
+<div class="linkrows">
+  {% for l in items %}
+  <div class="linkrow">
+    <a href="{{ l.url }}" target="_blank" rel="noopener" class="linkrow-name">▸ {{ l.title }}</a>
+    <span class="muted small linkrow-host">{{ l.host }}</span>
+    <span class="muted small linkrow-note">{{ l.note }}</span>
+    <form method="post" action="/links/{{ l.id }}/delete" data-confirm="Remove {{ l.title }}?">
+      <button class="danger-link" title="Remove">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted empty">No links yet. Add your tools — portfolio tracker, NetWatch, email, the Hostinger panel — and this becomes the company start page.</p>
+{% endfor %}
+{% endblock %}

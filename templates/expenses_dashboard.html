@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Expense dashboard · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Expense dashboard</h1>
+  <form method="get" action="/expenses/dashboard">
+    <select name="entity" onchange="this.form.submit()">
+      <option value="">All entities</option>
+      {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == entity_id }}>{{ e.name }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+{% include "_expense_tabs.html" %}
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">This month</div><div class="stat-value">{{ cards.month_spend | money }}</div></div>
+  <div class="card stat"><div class="stat-label">{{ year }} spend</div><div class="stat-value">{{ cards.ytd_spend | money }}</div></div>
+  <div class="card stat"><div class="stat-label">Miles this month</div><div class="stat-value">{{ '{:,}'.format(cards.month_miles) }}</div></div>
+  <div class="card stat"><div class="stat-label">{{ year }} miles</div><div class="stat-value">{{ '{:,}'.format(cards.ytd_miles) }}</div></div>
+</div>
+
+<div class="chart-grid">
+  <div class="card">
+    <div class="card-head"><h2>Monthly spend</h2><span class="muted small">last 12 months</span></div>
+    <div class="colchart">
+      {% for m in spend_months %}
+      <div class="colcell" title="{{ m.label }}: {{ m.value | money }}">
+        <div class="colbar" style="height: {{ [m.pct, 2] | max }}%"></div>
+        <span class="collabel">{{ m.short }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <details class="small"><summary class="muted">View as table</summary>
+      <table class="list">
+        {% for m in spend_months %}<tr><td>{{ m.label }}</td><td class="num">{{ m.value | money }}</td></tr>{% endfor %}
+      </table>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Monthly miles</h2><span class="muted small">last 12 months</span></div>
+    <div class="colchart">
+      {% for m in miles_months %}
+      <div class="colcell" title="{{ m.label }}: {{ '{:,}'.format(m.value | round(1)) }} mi">
+        <div class="colbar" style="height: {{ [m.pct, 2] | max }}%"></div>
+        <span class="collabel">{{ m.short }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <details class="small"><summary class="muted">View as table</summary>
+      <table class="list">
+        {% for m in miles_months %}<tr><td>{{ m.label }}</td><td class="num">{{ '{:,}'.format(m.value | round(1)) }}</td></tr>{% endfor %}
+      </table>
+    </details>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="card">
+    <div class="card-head"><h2>{{ year }} by category</h2></div>
+    {% for c in categories %}
+    <div class="hbar" title="{{ c.name }}: {{ c.cents | money }}">
+      <span class="hbar-name">{{ c.name }}</span>
+      <div class="hbar-track"><div class="hbar-fill" style="width: {{ [(c.cents * 100 / cat_peak) | round(1), 2] | max }}%"></div></div>
+      <span class="hbar-val">{{ c.cents | money }}</span>
+    </div>
+    {% else %}
+    <p class="muted small empty">No expenses yet this year.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ year }} by entity</h2></div>
+    <table class="list">
+      <tr><th>Entity</th><th class="num">Spend</th><th class="num">Miles</th></tr>
+      {% for e in entity_rows %}
+      <tr><td>{{ e.name }}</td><td class="num">{{ e.cents | money }}</td><td class="num">{{ '{:,}'.format(e.miles | round(1)) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

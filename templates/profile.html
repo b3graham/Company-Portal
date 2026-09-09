@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Profile · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Your profile</h1></div>
+
+<div class="card narrow">
+  <form method="post" action="/profile" class="stack">
+    <label>Name <input type="text" name="name" value="{{ user.name }}" required></label>
+    <label>Job title <input type="text" name="title" value="{{ user.title }}"></label>
+    <label>Phone <input type="text" name="phone" value="{{ user.phone }}"></label>
+    <button class="primary">Save</button>
+  </form>
+</div>
+
+<h2 class="section">Change password</h2>
+<div class="card narrow">
+  <form method="post" action="/profile/password" class="stack">
+    <label>Current password <input type="password" name="current" required></label>
+    <label>New password (8+ characters) <input type="password" name="new" minlength="8" required></label>
+    <button class="primary">Change password</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Docs · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Documents</h1>
+  <a class="button primary" href="/docs/new?cat={{ cat }}">＋ New doc</a>
+</div>
+
+<div class="tabs">
+  <a href="/docs?cat=working" class="{{ 'active' if cat == 'working' }}">Working docs</a>
+  <a href="/docs?cat=company" class="{{ 'active' if cat == 'company' }}">Company docs</a>
+</div>
+
+<form method="get" action="/docs" class="searchbar">
+  <input type="hidden" name="cat" value="{{ cat }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search titles and content…">
+  <button>Search</button>
+</form>
+
+{% if q %}
+<h2 class="section">Matching pages</h2>
+<table class="list">
+  {% for d in docs %}
+  <tr>
+    <td><a href="/docs/{{ d.id }}">{{ d.title }}</a>
+      {% if d.folder_name %}<span class="badge">📁 {{ d.folder_name }}</span>{% endif %}</td>
+    <td class="meta">updated {{ d.updated_at[:10] }} by {{ d.editor or '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No matching pages.</td></tr>
+  {% endfor %}
+</table>
+<h2 class="section">Matching files</h2>
+<table class="list">
+  {% for f in files %}
+  <tr>
+    <td><a href="/files/{{ f.id }}/download">{{ f.orig_name }}</a>
+      {% if f.folder_name %}<span class="badge">📁 {{ f.folder_name }}</span>{% endif %}</td>
+    <td class="meta">{{ '%.1f'|format(f.size / 1024) }} KB · {{ f.uploaded_at[:10] }}</td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No matching files.</td></tr>
+  {% endfor %}
+</table>
+
+{% else %}
+<h2 class="section">Folders</h2>
+<div class="grid">
+  {% for f in folders %}
+  <div class="card linkcard">
+    <a href="/folders/{{ f.id }}" class="linkcard-title">📁 {{ f.name }}{% if f.restricted %} 🔒{% endif %}</a>
+    <div class="muted small">{{ f.n_docs }} page{{ '' if f.n_docs == 1 else 's' }} ·
+      {{ f.n_files }} file{{ '' if f.n_files == 1 else 's' }}{% if f.restricted %} · restricted{% endif %}</div>
+  </div>
+  {% else %}
+  <p class="muted">No folders yet.</p>
+  {% endfor %}
+</div>
+<details class="composer">
+  <summary>＋ New folder</summary>
+  <form method="post" action="/folders" class="stack">
+    <input type="hidden" name="cat" value="{{ cat }}">
+    <input type="text" name="name" placeholder="Folder name" required>
+    <label class="row"><input type="checkbox" name="restricted" class="inline-check">
+      Restricted — only members you choose (plus admins) can open it</label>
+    <button class="primary">Create folder</button>
+  </form>
+</details>
+
+<h2 class="section">Pages <span class="muted small">not in a folder</span></h2>
+<table class="list">
+  {% for d in docs %}
+  <tr>
+    <td><a href="/docs/{{ d.id }}">{{ d.title }}</a></td>
+    <td class="meta">updated {{ d.updated_at[:10] }} by {{ d.editor or '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No pages here yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h2 class="section">Files <span class="muted small">not in a folder</span></h2>
+<form method="post" action="/files/upload" enctype="multipart/form-data" class="uploadbar">
+  <input type="hidden" name="cat" value="{{ cat }}">
+  <input type="hidden" name="folder_id" value="">
+  <input type="file" name="upload" required>
+  <button>Upload</button>
+  <span class="muted">max 50 MB</span>
+</form>
+<table class="list">
+  {% for f in files %}
+  <tr>
+    <td><a href="/files/{{ f.id }}/download">{{ f.orig_name }}</a></td>
+    <td class="meta">{{ '%.1f'|format(f.size / 1024) }} KB · {{ f.uploaded_at[:10] }} · {{ f.uploader or '—' }}</td>
+    <td class="row">
+      {% if move_targets %}
+      <form method="post" action="/files/{{ f.id }}/move">
+        <select name="folder_id" onchange="this.form.submit()">
+          <option value="">Move to…</option>
+          {% for t in move_targets %}<option value="{{ t.id }}">📁 {{ t.name }}</option>{% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      <form method="post" action="/files/{{ f.id }}/delete" data-confirm="Delete {{ f.orig_name }}?">
+        <button class="danger-link">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No files uploaded yet.</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

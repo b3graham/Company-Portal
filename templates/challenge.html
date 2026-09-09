@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Daily challenge · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Daily cybersecurity challenge</h1>
+</div>
+
+{% set next_url = "/challenge" %}
+{% include "_challenge_widget.html" %}
+
+<h2 class="section">Leaderboard</h2>
+<table class="list">
+  <tr><th>#</th><th>Name</th><th class="num">Correct</th><th class="num">Played</th><th class="num">Accuracy</th><th class="num">Streak</th></tr>
+  {% for r in board %}
+  <tr>
+    <td>{{ loop.index }}</td>
+    <td>{{ r.name }}</td>
+    <td class="num"><strong>{{ r.correct }}</strong></td>
+    <td class="num">{{ r.attempts }}</td>
+    <td class="num">{{ (r.correct * 100 / r.attempts) | round | int }}%</td>
+    <td class="num">{% if r.streak %}🔥 {{ r.streak }}{% else %}—{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted empty">Nobody has played yet — be the first!</td></tr>
+  {% endfor %}
+</table>
+
+<h2 class="section">Past two weeks</h2>
+{% for h in history %}
+<div class="card">
+  <div class="card-head">
+    <h2 class="ch-day">{{ h.day }} <span class="badge">{{ h.challenge.kind_label }}</span></h2>
+    {% if h.attempt %}
+    <span class="badge {{ 'badge-won' if h.attempt.correct else 'badge-lost' }}">
+      {{ '✅ Correct' if h.attempt.correct else '❌ Missed' }}</span>
+    {% else %}
+    <span class="muted small">not played</span>
+    {% endif %}
+  </div>
+  <div class="ch-question">{{ h.challenge.question }}</div>
+  <p class="small"><strong>Answer:</strong> {{ h.challenge.answer.split('|')[0] }}</p>
+  <p class="small muted ch-explain">{{ h.challenge.explanation }}</p>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Setup · {{ portal_name }}{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <img src="/static/icon.png" class="auth-logo" alt="SKS logo">
+  <h1>Welcome 👋</h1>
+  <p class="muted">Create the first admin account for {{ portal_name }}.</p>
+  <form method="post" action="/setup">
+    <label>Your name <input type="text" name="name" required autofocus></label>
+    <label>Email <input type="email" name="email" required></label>
+    <label>Password <input type="password" name="password" minlength="8" required></label>
+    <button class="primary">Create admin account</button>
+  </form>
+</div>
+{% endblock %}

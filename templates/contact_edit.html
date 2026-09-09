@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Edit contact · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ contact.name }}</h1>
+  <a class="button" href="/crm/contacts">← Back to contacts</a>
+</div>
+
+<div class="card narrow">
+  <form method="post" action="/crm/contacts/{{ contact.id }}/edit" class="stack">
+    <label>Name <input type="text" name="name" value="{{ contact.name }}" required></label>
+    <label>Company <input type="text" name="company" value="{{ contact.company }}"></label>
+    <label>Title <input type="text" name="title" value="{{ contact.title }}"></label>
+    <label>Email <input type="email" name="email" value="{{ contact.email }}"></label>
+    <label>Phone <input type="text" name="phone" value="{{ contact.phone }}"></label>
+    <label>Notes <input type="text" name="notes" value="{{ contact.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+</div>
+
+{% if leads %}
+<h2 class="section">Leads</h2>
+<table class="list">
+  <tr><th>Opportunity</th><th>Stage</th><th>Entity</th><th></th></tr>
+  {% for l in leads %}
+  <tr>
+    <td>{{ l.title }}</td>
+    <td><span class="badge">{{ stage_labels[l.stage] }}</span></td>
+    <td>{{ l.entity or '' }}</td>
+    <td><a class="small" href="/crm/leads/{{ l.id }}/edit">Edit</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if projects %}
+<h2 class="section">Projects</h2>
+<table class="list">
+  <tr><th>Project</th><th>Status</th><th>Due</th><th></th></tr>
+  {% for p in projects %}
+  <tr>
+    <td>{{ p.name }}</td>
+    <td><span class="badge">{{ project_labels[p.status] }}</span></td>
+    <td>{{ p.due_date }}</td>
+    <td><a class="small" href="/crm/projects/{{ p.id }}/edit">Edit</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

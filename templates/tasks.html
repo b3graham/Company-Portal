@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Tasks · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Task board</h1>
+</div>
+
+<details class="composer">
+  <summary>＋ Add a task</summary>
+  <form method="post" action="/tasks" class="stack">
+    <input type="text" name="title" placeholder="Task title" required>
+    <input type="text" name="note" placeholder="Details (optional)">
+    <select name="assignee_id">
+      <option value="">Unassigned</option>
+      {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+    </select>
+    <button class="primary">Add task</button>
+  </form>
+</details>
+
+<div class="kanban">
+  {% for status, label in [('todo', 'To Do'), ('doing', 'In Progress'), ('done', 'Done')] %}
+  <div class="kanban-col">
+    <h2>{{ label }} <span class="badge">{{ columns[status] | length }}</span></h2>
+    {% for t in columns[status] %}
+    <div class="task-card">
+      <div class="task-title">{{ t.title }}</div>
+      {% if t.note %}<div class="muted small">{{ t.note }}</div>{% endif %}
+      <form method="post" action="/tasks/{{ t.id }}/assign" class="assign">
+        <select name="assignee_id" onchange="this.form.submit()">
+          <option value="">Unassigned</option>
+          {% for m in members %}
+          <option value="{{ m.id }}" {{ 'selected' if m.id == t.assignee_id }}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <div class="row task-actions">
+        {% if status != 'todo' %}
+        <form method="post" action="/tasks/{{ t.id }}/move">
+          <input type="hidden" name="direction" value="prev"><button title="Move left">◀</button>
+        </form>
+        {% endif %}
+        {% if status != 'done' %}
+        <form method="post" action="/tasks/{{ t.id }}/move">
+          <input type="hidden" name="direction" value="next"><button title="Move right">▶</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/tasks/{{ t.id }}/delete" data-confirm="Delete this task?">
+          <button class="danger-link">✕</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted small empty">Nothing here.</p>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ folder.name }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📁 {{ folder.name }}{% if folder.restricted %} 🔒{% endif %}</h1>
+  <div class="row">
+    <a class="button primary" href="/docs/new?cat={{ folder.category }}&folder={{ folder.id }}">＋ New doc</a>
+    {% if can_manage %}
+    <form method="post" action="/folders/{{ folder.id }}/restrict"
+          data-confirm="{{ 'Open this folder to everyone?' if folder.restricted else 'Restrict this folder to chosen members only?' }}">
+      <button>{{ 'Open to everyone' if folder.restricted else 'Restrict access' }}</button>
+    </form>
+    <form method="post" action="/folders/{{ folder.id }}/delete" data-confirm="Delete this folder? It must be empty first.">
+      <button class="danger-link">Delete folder</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<div class="meta">
+  <a href="/docs?cat={{ folder.category }}">← back to {{ 'Company' if folder.category == 'company' else 'Working' }} docs</a>
+  · created by {{ owner or '—' }}
+  {% if folder.restricted %} · <strong>restricted</strong>{% endif %}
+</div>
+
+{% if folder.restricted %}
+<div class="card">
+  <strong>Who can access this folder</strong>
+  <div class="muted small">Admins and the folder creator ({{ owner or '—' }}) always have access.</div>
+  <div class="row access-list">
+    {% for m in members %}
+    <span class="badge member-chip">{{ m.name }}
+      {% if can_manage %}
+      <form method="post" action="/folders/{{ folder.id }}/access/remove/{{ m.id }}" class="inline-form"
+            data-confirm="Remove {{ m.name }}'s access?">
+        <button class="danger-link" title="Remove access">✕</button>
+      </form>
+      {% endif %}
+    </span>
+    {% else %}
+    <span class="muted small">No additional members yet.</span>
+    {% endfor %}
+  </div>
+  {% if can_manage and addable %}
+  <form method="post" action="/folders/{{ folder.id }}/access/add" class="row grant-form">
+    <select name="user_id">
+      {% for u2 in addable %}<option value="{{ u2.id }}">{{ u2.name }}</option>{% endfor %}
+    </select>
+    <button>Grant access</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2 class="section">Pages</h2>
+<table class="list">
+  {% for d in docs %}
+  <tr>
+    <td><a href="/docs/{{ d.id }}">{{ d.title }}</a></td>
+    <td class="meta">updated {{ d.updated_at[:10] }} by {{ d.editor or '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No pages in this folder yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h2 class="section">Files</h2>
+<form method="post" action="/files/upload" enctype="multipart/form-data" class="uploadbar">
+  <input type="hidden" name="cat" value="{{ folder.category }}">
+  <input type="hidden" name="folder_id" value="{{ folder.id }}">
+  <input type="file" name="upload" required>
+  <button>Upload to this folder</button>
+  <span class="muted">max 50 MB</span>
+</form>
+<table class="list">
+  {% for f in files %}
+  <tr>
+    <td><a href="/files/{{ f.id }}/download">{{ f.orig_name }}</a></td>
+    <td class="meta">{{ '%.1f'|format(f.size / 1024) }} KB · {{ f.uploaded_at[:10] }} · {{ f.uploader or '—' }}</td>
+    <td class="row">
+      <form method="post" action="/files/{{ f.id }}/move">
+        <select name="folder_id" onchange="this.form.submit()">
+          <option value="">Move to…</option>
+          <option value="0">(out of folder)</option>
+          {% for t in move_targets %}<option value="{{ t.id }}">📁 {{ t.name }}</option>{% endfor %}
+        </select>
+      </form>
+      <form method="post" action="/files/{{ f.id }}/delete" data-confirm="Delete {{ f.orig_name }}?">
+        <button class="danger-link">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No files in this folder yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

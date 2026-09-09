@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Home · {{ portal_name }}{% endblock %}
+{% block content %}
+{% include "_challenge_widget.html" %}
+
+<div class="card widget ticker-widget">
+  <div class="row widget-head">
+    <strong>📈 Markets</strong>
+    <details class="push-right add-city">
+      <summary title="Add a stock or index">＋ symbol</summary>
+      <form method="post" action="/stocks" class="row">
+        <input type="text" name="query" placeholder="Symbol or company" required>
+        <button>Add</button>
+      </form>
+      <div class="ticker-chips">
+        {% for s in stocks %}
+        <form method="post" action="/stocks/{{ s.id }}/delete" class="ticker-chip"
+              data-confirm="Remove {{ s.symbol }} from the ticker?">
+          <span title="{{ s.name }}">{{ s.symbol }}</span>
+          <button class="danger-link" title="Remove">✕</button>
+        </form>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+  <div class="ticker-tape">
+    <div class="ticker-track" id="ticker-track">
+      {% if stocks %}
+      <span class="muted small">Loading quotes…</span>
+      {% else %}
+      <span class="muted small">No symbols yet — add one above.</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="widgets">
+  <div class="card widget weather-widget">
+    <div class="row widget-head">
+      <strong>Weather</strong>
+      <details class="push-right add-city">
+        <summary title="Add a city">＋ city</summary>
+        <form method="post" action="/weather/cities" class="row">
+          <input type="text" name="city" placeholder="City name" required>
+          <button>Add</button>
+        </form>
+      </details>
+    </div>
+    <div id="weather-cards">
+      {% for c in cities %}
+      <div class="wcity" data-id="{{ c.id }}">
+        <span class="w-emoji">·</span>
+        <span class="w-name" title="{{ c.region }}">{{ c.name }}</span>
+        <span class="w-temp muted">…</span>
+        <span class="w-desc muted small"></span>
+        <form method="post" action="/weather/cities/{{ c.id }}/delete" data-confirm="Remove {{ c.name }}?">
+          <button class="danger-link" title="Remove city">✕</button>
+        </form>
+      </div>
+      {% else %}
+      <p class="muted small empty">No cities yet — add one above to see current conditions.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card widget news-widget">
+    <div class="row widget-head">
+      <strong>🌍 Top world news</strong>
+      <span class="muted small push-right" id="news-src"></span>
+    </div>
+    <ol id="news-list" class="news-list">
+      <li class="muted small">Loading…</li>
+    </ol>
+  </div>
+</div>
+
+<div class="page-head">
+  <h1>Announcements</h1>
+  <span class="muted">{{ open_tasks }} open task{{ '' if open_tasks == 1 else 's' }} on the <a href="/tasks">board</a></span>
+</div>
+
+<details class="composer">
+  <summary>＋ Post an announcement</summary>
+  <form method="post" action="/announcements" class="stack">
+    <input type="text" name="title" placeholder="Title" required>
+    <textarea name="body" rows="4" placeholder="Details (markdown supported)"></textarea>
+    <button class="primary">Post</button>
+  </form>
+</details>
+
+{% for p in posts %}
+<article class="card">
+  <div class="card-head">
+    <h2>{{ p.title }}</h2>
+    {% if user.id == p.author_id or user.role == 'admin' %}
+    <form method="post" action="/announcements/{{ p.id }}/delete" data-confirm="Delete this announcement?">
+      <button class="danger-link">Delete</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="md">{{ p.body | md | safe }}</div>
+  <div class="meta">{{ p.author or 'Unknown' }} · {{ p.created_at[:10] }}</div>
+</article>
+{% else %}
+<p class="muted empty">No announcements yet. Post the first one above — it doubles as a running log of company decisions and milestones.</p>
+{% endfor %}
+{% endblock %}

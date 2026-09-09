@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ doc.title }}</h1>
+  <div class="row">
+    <a class="button primary" href="/docs/{{ doc.id }}/edit">Edit</a>
+    <form method="post" action="/docs/{{ doc.id }}/delete" data-confirm="Delete this document and its history?">
+      <button class="danger-link">Delete</button>
+    </form>
+  </div>
+</div>
+<div class="meta">{{ 'Company doc' if doc.category == 'company' else 'Working doc' }} ·
+  last edited {{ doc.updated_at[:16].replace('T', ' ') }} by {{ doc.editor or '—' }} ·
+  <a href="/docs?cat={{ doc.category }}">back to list</a></div>
+
+<article class="card md">{{ doc.content | md | safe }}</article>
+
+{% if versions | length > 1 %}
+<details>
+  <summary>History ({{ versions | length }} versions)</summary>
+  <table class="list">
+    {% for v in versions %}
+    <tr>
+      <td><a href="/docs/{{ doc.id }}/versions/{{ v.id }}">{{ v.saved_at[:16].replace('T', ' ') }}</a></td>
+      <td class="meta">{{ v.author or '—' }}{{ ' · current' if loop.first }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sign in · {{ portal_name }}{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <img src="/static/icon.png" class="auth-logo" alt="SKS logo">
+  <h1>{{ portal_name }}</h1>
+  <p class="muted">Sign in to continue</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login{% if request.query_params.get('next') %}?next={{ request.query_params.get('next') }}{% endif %}">
+    <label>Email <input type="email" name="email" required autofocus></label>
+    <label>Password <input type="password" name="password" required></label>
+    <button class="primary">Sign in</button>
+  </form>
+</div>
+{% endblock %}

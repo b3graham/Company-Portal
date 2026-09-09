@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Leads · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Lead pipeline</h1>
+  <span class="muted small">
+    {{ n_open }} open{% if overdue %} · <span class="overdue">{{ overdue }} overdue follow-up{{ '' if overdue == 1 else 's' }}</span>{% endif %}
+    · {{ year }}: {{ won }} won / {{ lost }} lost
+  </span>
+</div>
+
+{% include "_crm_tabs.html" %}
+
+<details class="composer">
+  <summary>＋ Add a lead</summary>
+  <form method="post" action="/crm/leads/add" class="stack">
+    <div class="field-grid">
+      <label>Opportunity <input type="text" name="title" placeholder="Company or job name" required></label>
+      <label>Entity
+        <select name="entity_id">
+          <option value="">—</option>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Contact
+        <select name="contact_id">
+          <option value="">—</option>
+          {% for c in contacts %}<option value="{{ c.id }}">{{ c.name }}{% if c.company %} ({{ c.company }}){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Source <input type="text" name="source" list="sources" placeholder="Referral, website…"></label>
+      <label>Next follow-up <input type="date" name="follow_up"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Add lead</button>
+  </form>
+  <datalist id="sources">
+    {% for s in sources %}<option value="{{ s }}">{% endfor %}
+  </datalist>
+</details>
+
+<div class="kanban cols4">
+  {% for stage in open_stages %}
+  <div class="kanban-col">
+    <h2>{{ stage_labels[stage] }} <span class="badge">{{ columns[stage] | length }}</span></h2>
+    {% for l in columns[stage] %}
+    <div class="task-card">
+      <div class="task-title">{{ l.title }}</div>
+      <div class="small muted">
+        {% if l.entity %}<span class="badge">{{ l.entity }}</span>{% endif %}
+        {% if l.contact_name %}👤 {{ l.contact_name }}{% endif %}
+        {% if l.source %} · {{ l.source }}{% endif %}
+      </div>
+      {% if l.follow_up %}
+      <div class="small {{ 'overdue' if l.follow_up < today else 'muted' }}">📅 follow up {{ l.follow_up }}</div>
+      {% endif %}
+      {% if l.notes %}<div class="muted small">{{ l.notes }}</div>{% endif %}
+      <div class="row task-actions">
+        {% if stage != 'new' %}
+        <form method="post" action="/crm/leads/{{ l.id }}/stage">
+          <input type="hidden" name="stage" value="{{ open_stages[open_stages.index(stage) - 1] }}">
+          <button title="Back to {{ stage_labels[open_stages[open_stages.index(stage) - 1]] }}">◀</button>
+        </form>
+        {% endif %}
+        {% if stage != 'proposal' %}
+        <form method="post" action="/crm/leads/{{ l.id }}/stage">
+          <input type="hidden" name="stage" value="{{ open_stages[open_stages.index(stage) + 1] }}">
+          <button title="Advance to {{ stage_labels[open_stages[open_stages.index(stage) + 1]] }}">▶</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/crm/leads/{{ l.id }}/stage">
+          <input type="hidden" name="stage" value="won"><button class="win" title="Mark won">✓ Won</button>
+        </form>
+        <form method="post" action="/crm/leads/{{ l.id }}/stage">
+          <input type="hidden" name="stage" value="lost"><button class="lose" title="Mark lost">✗ Lost</button>
+        </form>
+        <a class="small push-right" href="/crm/leads/{{ l.id }}/edit">Edit</a>
+        <form method="post" action="/crm/leads/{{ l.id }}/delete" data-confirm="Delete this lead?">
+          <button class="danger-link">✕</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted small empty">Nothing here.</p>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if closed %}
+<h2 class="section">Closed leads</h2>
+<table class="list">
+  <tr><th>Outcome</th><th>Opportunity</th><th>Entity</th><th>Contact</th><th>Closed</th><th></th></tr>
+  {% for l in closed %}
+  <tr>
+    <td><span class="badge {{ 'badge-won' if l.stage == 'won' else 'badge-lost' }}">{{ stage_labels[l.stage] }}</span></td>
+    <td>{{ l.title }}</td>
+    <td>{{ l.entity or '' }}</td>
+    <td>{{ l.contact_name or '' }}</td>
+    <td class="nowrap">{{ l.closed_at or '' }}</td>
+    <td class="nowrap">
+      {% if l.stage == 'won' and l.id not in converted %}
+      <form method="post" action="/crm/leads/{{ l.id }}/convert" class="inline-form">
+        <button class="small">→ Convert to project</button>
+      </form>
+      {% elif l.id in converted %}
+      <span class="muted small">converted</span>
+      {% endif %}
+      <form method="post" action="/crm/leads/{{ l.id }}/stage" class="inline-form">
+        <input type="hidden" name="stage" value="new"><button class="small" title="Back to pipeline">Reopen</button>
+      </form>
+      <form method="post" action="/crm/leads/{{ l.id }}/delete" class="inline-form" data-confirm="Delete this lead?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Edit lead · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit lead</h1>
+  <a class="button" href="/crm/leads">← Back to pipeline</a>
+</div>
+
+<div class="card narrow">
+  <form method="post" action="/crm/leads/{{ lead.id }}/edit" class="stack">
+    <label>Opportunity <input type="text" name="title" value="{{ lead.title }}" required></label>
+    <label>Stage
+      <select name="stage">
+        {% for s in stages %}<option value="{{ s }}" {{ 'selected' if s == lead.stage }}>{{ stage_labels[s] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Entity
+      <select name="entity_id">
+        <option value="">—</option>
+        {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == lead.entity_id }}>{{ e.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Contact
+      <select name="contact_id">
+        <option value="">—</option>
+        {% for c in contacts %}<option value="{{ c.id }}" {{ 'selected' if c.id == lead.contact_id }}>{{ c.name }}{% if c.company %} ({{ c.company }}){% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Source <input type="text" name="source" value="{{ lead.source }}" list="sources"></label>
+    <label>Next follow-up <input type="date" name="follow_up" value="{{ lead.follow_up }}"></label>
+    <label>Notes <input type="text" name="notes" value="{{ lead.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+  <datalist id="sources">
+    {% for s in sources %}<option value="{{ s }}">{% endfor %}
+  </datalist>
+</div>
+{% endblock %}
