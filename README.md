@@ -17,6 +17,11 @@ FastAPI + SQLite + Jinja2. No external services; everything lives in `data/`.
 | Team `/team` | Employee directory + per-user onboarding checklist (admins define the items) |
 | Links `/links` | Company start page of tools and resources, grouped by category |
 | Users `/admin/users` | Admin only: create users (temp password shown once), reset passwords, deactivate |
+| IT `/it` | IT department only (and admins). Home dashboard (warranties, renewals, docs due for review), then sub-pages: |
+| · Assets `/it/assets` | Hardware tracker: tag, serial, purchase date, cost, in-service date, assignment, warranty, lifecycle status; CSV export |
+| · Software & licenses `/it/licenses` | Subscriptions and seats with renewal date, billing cadence, owner, login location; annualized spend; CSV export |
+| · Vendors `/it/vendors` | Support contacts: account numbers, phone, email, portal, contract end |
+| · Policies / Runbooks / Disaster recovery `/it/docs/…` | Markdown docs with version history, owner, status (draft/active/retired) and next-review date; seeded with starter outlines on first run |
 
 ## Run locally
 
@@ -84,3 +89,6 @@ tar czf /root/backups/portal-$(date +%F).tar.gz -C /path/to/company-portal data
 - Markdown is rendered server-side and not HTML-sanitized — fine for a trusted
   internal team; don't open registration to the public.
 - Deactivating a user kills their sessions immediately; their docs/posts remain.
+- Departments: admins set a user's department on the Users page (currently just `IT`).
+  Department-only sections show in the sidebar only for members of that department;
+  admins always see every department. Add more departments in `DEPARTMENTS` in `app/auth.py`.

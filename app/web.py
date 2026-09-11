@@ -24,5 +24,8 @@ templates.env.globals["portal_name"] = PORTAL_NAME
 
 
 def page(request, name, user=None, **ctx):
-    ctx.update({"user": user, "msg": request.query_params.get("msg", "")})
+    from .auth import DEPARTMENTS, in_department  # local import: auth imports this module
+    ctx.update({"user": user, "msg": request.query_params.get("msg", ""),
+                "departments": DEPARTMENTS,
+                "in_department": (lambda d: in_department(user, d)) if user else (lambda d: False)})
     return templates.TemplateResponse(request, name, ctx)

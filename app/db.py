@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone         TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    department    TEXT NOT NULL DEFAULT '',
     active        INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -229,6 +230,89 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS assets (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag             TEXT NOT NULL DEFAULT '',
+    name            TEXT NOT NULL,
+    type            TEXT NOT NULL DEFAULT 'other',
+    make            TEXT NOT NULL DEFAULT '',
+    model           TEXT NOT NULL DEFAULT '',
+    serial          TEXT NOT NULL DEFAULT '',
+    purchase_date   TEXT NOT NULL DEFAULT '',
+    cost_cents      INTEGER,
+    vendor          TEXT NOT NULL DEFAULT '',
+    in_service_date TEXT NOT NULL DEFAULT '',
+    status          TEXT NOT NULL DEFAULT 'in_service'
+                    CHECK (status IN ('in_service', 'spare', 'repair', 'retired', 'disposed')),
+    assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    location        TEXT NOT NULL DEFAULT '',
+    warranty_end    TEXT NOT NULL DEFAULT '',
+    notes           TEXT NOT NULL DEFAULT '',
+    created_by      INTEGER REFERENCES users(id),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_assets_serial ON assets (serial);
+
+CREATE TABLE IF NOT EXISTS licenses (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT NOT NULL,
+    vendor       TEXT NOT NULL DEFAULT '',
+    category     TEXT NOT NULL DEFAULT 'other',
+    seats        INTEGER,
+    cost_cents   INTEGER,
+    billing      TEXT NOT NULL DEFAULT 'annual'
+                 CHECK (billing IN ('monthly', 'annual', 'one_time')),
+    renewal_date TEXT NOT NULL DEFAULT '',
+    auto_renew   INTEGER NOT NULL DEFAULT 0,
+    owner_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    login_url    TEXT NOT NULL DEFAULT '',
+    account      TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled')),
+    notes        TEXT NOT NULL DEFAULT '',
+    created_by   INTEGER REFERENCES users(id),
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS vendors (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    category      TEXT NOT NULL DEFAULT 'other',
+    account_no    TEXT NOT NULL DEFAULT '',
+    contact_name  TEXT NOT NULL DEFAULT '',
+    support_phone TEXT NOT NULL DEFAULT '',
+    support_email TEXT NOT NULL DEFAULT '',
+    portal_url    TEXT NOT NULL DEFAULT '',
+    contract_end  TEXT NOT NULL DEFAULT '',
+    notes         TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS it_docs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    section     TEXT NOT NULL CHECK (section IN ('policies', 'runbooks', 'dr')),
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'retired')),
+    owner_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    review_date TEXT NOT NULL DEFAULT '',
+    updated_by  INTEGER REFERENCES users(id),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS it_doc_versions (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id   INTEGER NOT NULL REFERENCES it_docs(id) ON DELETE CASCADE,
+    title    TEXT NOT NULL,
+    content  TEXT NOT NULL,
+    saved_by INTEGER REFERENCES users(id),
+    saved_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_it_versions_doc ON it_doc_versions (doc_id, saved_at);
 """
 
 TICKER_DEFAULTS = [
@@ -276,6 +360,10 @@ def init():
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
             if "folder_id" not in cols:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN folder_id INTEGER REFERENCES folders(id)")
+        # Migration for databases created before departments existed.
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
+        if "department" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN department TEXT NOT NULL DEFAULT ''")
         if not conn.execute("SELECT 1 FROM ticker_symbols LIMIT 1").fetchone():
             conn.executemany("INSERT INTO ticker_symbols (symbol, name) VALUES (?, ?)",
                              TICKER_DEFAULTS)
@@ -284,6 +372,15 @@ def init():
                 continue
             conn.executemany("INSERT INTO expense_lists (kind, name) VALUES (?, ?)",
                              [(kind, n) for n in names])
+        if not conn.execute("SELECT 1 FROM it_docs LIMIT 1").fetchone():
+            from .it_doc_seed import STARTER_DOCS
+            for section, title, content in STARTER_DOCS:
+                cur = conn.execute(
+                    "INSERT INTO it_docs (section, title, content, status) VALUES (?, ?, ?, 'draft')",
+                    (section, title, content))
+                conn.execute(
+                    "INSERT INTO it_doc_versions (doc_id, title, content) VALUES (?, ?, ?)",
+                    (cur.lastrowid, title, content))
         if not conn.execute("SELECT 1 FROM challenges LIMIT 1").fetchone():
             import json
 

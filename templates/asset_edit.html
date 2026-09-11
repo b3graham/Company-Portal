@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Edit asset · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit asset</h1>
+  <a class="button" href="/it/assets">← Back to assets</a>
+</div>
+
+<div class="card">
+  <form method="post" action="/it/assets/{{ asset.id }}/edit" class="stack">
+    <div class="field-grid">
+      <label>Asset tag <input type="text" name="tag" value="{{ asset.tag }}"></label>
+      <label>Name <input type="text" name="name" value="{{ asset.name }}" required></label>
+      <label>Type
+        <select name="type">
+          {% for t in types %}<option value="{{ t }}" {{ 'selected' if t == asset.type }}>{{ type_labels[t] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Make <input type="text" name="make" value="{{ asset.make }}"></label>
+      <label>Model <input type="text" name="model" value="{{ asset.model }}"></label>
+      <label>Serial number <input type="text" name="serial" value="{{ asset.serial }}"></label>
+      <label>Purchase date <input type="date" name="purchase_date" value="{{ asset.purchase_date }}"></label>
+      <label>Cost <input type="text" name="cost" inputmode="decimal" value="{{ '%.2f' % (asset.cost_cents / 100) if asset.cost_cents is not none else '' }}"></label>
+      <label>Vendor <input type="text" name="vendor" value="{{ asset.vendor }}"></label>
+      <label>In service date <input type="date" name="in_service_date" value="{{ asset.in_service_date }}"></label>
+      <label>Status
+        <select name="status">
+          {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == asset.status }}>{{ status_labels[s] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Assigned to
+        <select name="assigned_to">
+          <option value="">— unassigned —</option>
+          {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if p.id == asset.assigned_to }}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Location <input type="text" name="location" value="{{ asset.location }}"></label>
+      <label>Warranty ends <input type="date" name="warranty_end" value="{{ asset.warranty_end }}"></label>
+    </div>
+    <label>Notes <input type="text" name="notes" value="{{ asset.notes }}"></label>
+    <button class="primary">Save changes</button>
+    <p class="muted small">Added {{ asset.created_at }} · last updated {{ asset.updated_at }}</p>
+  </form>
+</div>
+{% endblock %}

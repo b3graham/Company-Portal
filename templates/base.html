@@ -23,6 +23,9 @@
       <a href="/challenge" class="{{ 'active' if request.url.path.startswith('/challenge') }}">🛡️ Challenge</a>
       <a href="/team" class="{{ 'active' if request.url.path.startswith('/team') }}">👥 Team</a>
       <a href="/links" class="{{ 'active' if request.url.path.startswith('/links') }}">🔗 Links</a>
+      {% if in_department('it') %}
+      <a href="/it" class="{{ 'active' if request.url.path.startswith('/it') }}">🖥️ IT</a>
+      {% endif %}
       {% if user.role == 'admin' %}
       <a href="/expenses" class="{{ 'active' if request.url.path.startswith('/expenses') }}">💰 Expenses</a>
       <a href="/admin/users" class="{{ 'active' if request.url.path.startswith('/admin/users') }}">⚙️ Users</a>

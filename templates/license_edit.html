@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Edit license · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit: {{ lic.name }}</h1>
+  <a class="button" href="/it/licenses">← Back to licenses</a>
+</div>
+
+<div class="card">
+  <form method="post" action="/it/licenses/{{ lic.id }}/edit" class="stack">
+    <div class="field-grid">
+      <label>Name <input type="text" name="name" value="{{ lic.name }}" required></label>
+      <label>Vendor <input type="text" name="vendor" value="{{ lic.vendor }}"></label>
+      <label>Category
+        <select name="category">
+          {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == lic.category }}>{{ cat_labels[c] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Seats <input type="text" name="seats" inputmode="numeric" value="{{ lic.seats if lic.seats is not none else '' }}"></label>
+      <label>Cost <input type="text" name="cost" inputmode="decimal" value="{{ '%.2f' % (lic.cost_cents / 100) if lic.cost_cents is not none else '' }}"></label>
+      <label>Billing
+        <select name="billing">
+          {% for b in billing %}<option value="{{ b }}" {{ 'selected' if b == lic.billing }}>{{ billing_labels[b] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Renewal date <input type="date" name="renewal_date" value="{{ lic.renewal_date }}"></label>
+      <label class="checkbox"><input type="checkbox" name="auto_renew" value="1" {{ 'checked' if lic.auto_renew }}> Auto-renews</label>
+      <label>Owner
+        <select name="owner_id">
+          <option value="">—</option>
+          {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if p.id == lic.owner_id }}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Login URL <input type="url" name="login_url" value="{{ lic.login_url }}"></label>
+      <label>Account / admin email <input type="text" name="account" value="{{ lic.account }}"></label>
+      <label>Status
+        <select name="status">
+          <option value="active" {{ 'selected' if lic.status == 'active' }}>Active</option>
+          <option value="cancelled" {{ 'selected' if lic.status == 'cancelled' }}>Cancelled</option>
+        </select>
+      </label>
+    </div>
+    <label>Notes <input type="text" name="notes" value="{{ lic.notes }}"></label>
+    <button class="primary">Save changes</button>
+    <p class="muted small">Added {{ lic.created_at }} · last updated {{ lic.updated_at }}</p>
+  </form>
+</div>
+{% endblock %}

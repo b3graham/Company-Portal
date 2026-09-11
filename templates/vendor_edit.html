@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Edit vendor · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit: {{ vendor.name }}</h1>
+  <a class="button" href="/it/vendors">← Back to vendors</a>
+</div>
+
+<div class="card">
+  <form method="post" action="/it/vendors/{{ vendor.id }}/edit" class="stack">
+    <div class="field-grid">
+      <label>Vendor <input type="text" name="name" value="{{ vendor.name }}" required></label>
+      <label>Category
+        <select name="category">
+          {% for c in categories %}<option value="{{ c }}" {{ 'selected' if c == vendor.category }}>{{ cat_labels[c] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Account number <input type="text" name="account_no" value="{{ vendor.account_no }}"></label>
+      <label>Contact name <input type="text" name="contact_name" value="{{ vendor.contact_name }}"></label>
+      <label>Support phone <input type="text" name="support_phone" value="{{ vendor.support_phone }}"></label>
+      <label>Support email <input type="text" name="support_email" value="{{ vendor.support_email }}"></label>
+      <label>Portal URL <input type="url" name="portal_url" value="{{ vendor.portal_url }}"></label>
+      <label>Contract ends <input type="date" name="contract_end" value="{{ vendor.contract_end }}"></label>
+    </div>
+    <label>Notes <input type="text" name="notes" value="{{ vendor.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+</div>
+{% endblock %}

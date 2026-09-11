@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ doc.title }} <span class="badge">{{ status_labels[doc.status] }}</span></h1>
+  <div class="row">
+    <a class="button primary" href="/it/doc/{{ doc.id }}/edit">Edit</a>
+    <form method="post" action="/it/doc/{{ doc.id }}/delete" data-confirm="Delete this document and its history?">
+      <button class="danger-link">Delete</button>
+    </form>
+  </div>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="meta">
+  {{ meta.icon }} <a href="/it/docs/{{ section }}">{{ meta.label }}</a> ·
+  owner {{ doc.owner or '—' }} ·
+  review by <span class="{{ 'overdue' if doc.review_date and doc.review_date <= today and doc.status != 'retired' }}">{{ doc.review_date or 'not set' }}</span> ·
+  last edited {{ doc.updated_at[:16].replace('T', ' ') }} by {{ doc.editor or '—' }}
+</div>
+
+<form method="post" action="/it/doc/{{ doc.id }}/reviewed" class="row small" style="margin-bottom:0.9rem">
+  <span class="muted">Reviewed today, next review in</span>
+  <select name="months">
+    <option value="3">3 months</option>
+    <option value="6">6 months</option>
+    <option value="12" selected>12 months</option>
+    <option value="24">24 months</option>
+  </select>
+  <button>Mark reviewed</button>
+</form>
+
+<article class="card md">{{ doc.content | md | safe }}</article>
+
+{% if versions | length > 1 %}
+<details>
+  <summary>History ({{ versions | length }} versions)</summary>
+  <table class="list">
+    {% for v in versions %}
+    <tr>
+      <td><a href="/it/doc/{{ doc.id }}/versions/{{ v.id }}">{{ v.saved_at[:16].replace('T', ' ') }}</a></td>
+      <td class="meta">{{ v.author or 'seeded' }}{{ ' · current' if loop.first }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+{% endblock %}

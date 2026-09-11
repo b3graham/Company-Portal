@@ -264,6 +264,183 @@ check("member sidebar hides link", "💰 Expenses" not in member.get("/tasks").t
 check("member CAN use CRM", member.get("/crm/leads").status_code == 200)
 check("member CAN play challenge", member.get("/challenge").status_code == 200)
 
+# ---------- IT department + asset tracker ----------
+r = client.get("/it")
+check("IT home renders", r.status_code == 200 and "<h1>IT</h1>" in r.text, r.text[:300])
+check("admin sees IT tab", "🖥️ IT" in client.get("/tasks").text)
+check("admin can open assets", client.get("/it/assets").status_code == 200)
+check("member blocked from IT", member.get("/it/assets").status_code == 403)
+check("member sidebar hides IT", "🖥️ IT" not in member.get("/tasks").text)
+
+r = client.post("/it/assets/add",
+                data={"tag": "SK-0001", "name": "Field laptop", "type": "laptop", "make": "Dell",
+                      "model": "Latitude 5550", "serial": "ABC123XYZ", "purchase_date": "2026-01-15",
+                      "cost": "$1,299.00", "vendor": "Dell", "in_service_date": "2026-01-20",
+                      "status": "in_service", "assigned_to": uid1, "location": "Office",
+                      "warranty_end": "2029-01-15", "notes": "primary machine"},
+                follow_redirects=False)
+check("add asset", r.status_code == 303, r.text[:300])
+r = client.post("/it/assets/add", data={"name": "Old switch", "type": "network", "status": "retired",
+                                        "serial": "SW-OLD-1"}, follow_redirects=False)
+check("add retired asset", r.status_code == 303, r.text[:300])
+check("bad type rejected", client.post("/it/assets/add", data={"name": "x", "type": "toaster"}).status_code == 422)
+check("bad cost rejected", client.post("/it/assets/add", data={"name": "x", "cost": "lots"}).status_code == 422)
+check("bad date rejected", client.post("/it/assets/add", data={"name": "x", "purchase_date": "1/2/26"}).status_code == 422)
+
+r = client.get("/it/assets")
+check("asset listed", "SK-0001" in r.text and "ABC123XYZ" in r.text and "$1,299.00" in r.text)
+check("retired hidden by default", "Old switch" not in r.text)
+check("all statuses shows retired", "Old switch" in client.get("/it/assets?status=").text)
+check("status filter", "Old switch" in client.get("/it/assets?status=retired").text)
+check("serial search", "Field laptop" in client.get("/it/assets?q=abc123").text)
+check("search misses", "Field laptop" not in client.get("/it/assets?q=nope").text)
+check("type filter", "Field laptop" not in client.get("/it/assets?type=server").text)
+check("bad filter rejected", client.get("/it/assets?status=bogus").status_code == 422)
+
+aid = db.query_one("SELECT id FROM assets WHERE tag='SK-0001'")["id"]
+check("edit form loads", "ABC123XYZ" in client.get(f"/it/assets/{aid}/edit").text)
+r = client.post(f"/it/assets/{aid}/edit",
+                data={"tag": "SK-0001", "name": "Field laptop", "type": "laptop", "serial": "NEWSERIAL",
+                      "status": "repair", "cost": "1299"}, follow_redirects=False)
+check("edit asset", r.status_code == 303 and "NEWSERIAL" in client.get("/it/assets").text)
+client.post(f"/it/assets/{aid}/status", data={"status": "spare"})
+check("quick status change", db.query_one("SELECT status FROM assets WHERE id=?", (aid,))["status"] == "spare")
+r = client.get("/it/assets/export/assets.csv?status=")
+check("csv export", r.status_code == 200 and "NEWSERIAL" in r.text and "Old switch" in r.text
+      and r.headers["content-type"].startswith("text/csv"))
+check("member blocked from csv", member.get("/it/assets/export/assets.csv").status_code == 403)
+client.post(f"/it/assets/{aid}/delete")
+check("delete asset", db.query_one("SELECT 1 FROM assets WHERE id=?", (aid,)) is None)
+
+# put the member in the IT department -> tab appears, access granted
+mid = row["id"]
+check("bad department rejected", client.post(f"/admin/users/{mid}/department",
+                                              data={"department": "sales"}).status_code == 422)
+r = client.post(f"/admin/users/{mid}/department", data={"department": "it"}, follow_redirects=False)
+check("set department", r.status_code == 303)
+check("IT member can open assets", member.get("/it/assets").status_code == 200)
+check("IT member sees tab", "🖥️ IT" in member.get("/tasks").text)
+check("IT member still blocked from expenses", member.get("/expenses").status_code == 403)
+check("users page shows department", 'value="it" selected' in client.get("/admin/users").text)
+client.post(f"/admin/users/{mid}/department", data={"department": ""})
+check("clear department revokes", member.get("/it/assets").status_code == 403)
+r = client.post("/admin/users", data={"name": "Tech", "email": "t@x.com", "role": "member", "department": "it"})
+check("create user with department",
+      db.query_one("SELECT department FROM users WHERE email='t@x.com'")["department"] == "it")
+
+# ---------- IT: software & licenses ----------
+check("licenses page", client.get("/it/licenses").status_code == 200)
+r = client.post("/it/licenses/add",
+                data={"name": "Office Suite", "vendor": "BigCorp", "category": "productivity",
+                      "seats": "5", "cost": "$12.50", "billing": "monthly",
+                      "renewal_date": (_date.today() + _dt.timedelta(days=10)).isoformat(),
+                      "auto_renew": "1", "owner_id": uid1, "login_url": "https://example.com",
+                      "account": "admin@example.com"}, follow_redirects=False)
+check("add license", r.status_code == 303, r.text[:300])
+r = client.post("/it/licenses/add", data={"name": "Old Scanner", "category": "security",
+                                          "cost": "500", "billing": "annual", "status": "cancelled"},
+                follow_redirects=False)
+check("add cancelled license", r.status_code == 303)
+check("bad seats rejected", client.post("/it/licenses/add", data={"name": "x", "seats": "five"}).status_code == 422)
+check("bad billing rejected", client.post("/it/licenses/add", data={"name": "x", "billing": "weekly"}).status_code == 422)
+r = client.get("/it/licenses")
+check("license listed", "Office Suite" in r.text and "$12.50" in r.text and "(soon)" in r.text)
+check("cancelled hidden by default", "Old Scanner" not in r.text)
+check("annualized spend = $150.00", "$150.00" in r.text, r.text[:100])
+check("all statuses shows cancelled", "Old Scanner" in client.get("/it/licenses?status=").text)
+check("license search", "Office Suite" in client.get("/it/licenses?q=bigcorp").text)
+check("license category filter", "Office Suite" not in client.get("/it/licenses?category=security").text)
+lid_ = db.query_one("SELECT id FROM licenses WHERE name='Office Suite'")["id"]
+check("license edit form", "BigCorp" in client.get(f"/it/licenses/{lid_}/edit").text)
+r = client.post(f"/it/licenses/{lid_}/edit",
+                data={"name": "Office Suite Pro", "category": "productivity", "billing": "annual",
+                      "cost": "150", "status": "active"}, follow_redirects=False)
+check("edit license", r.status_code == 303 and "Office Suite Pro" in client.get("/it/licenses").text)
+r = client.get("/it/licenses/export/licenses.csv?status=")
+check("licenses csv", r.status_code == 200 and "Office Suite Pro" in r.text and "Old Scanner" in r.text)
+check("member blocked from licenses", member.get("/it/licenses").status_code == 403)
+client.post(f"/it/licenses/{lid_}/delete")
+check("delete license", db.query_one("SELECT 1 FROM licenses WHERE id=?", (lid_,)) is None)
+
+# ---------- IT: vendors ----------
+check("vendors page", client.get("/it/vendors").status_code == 200)
+r = client.post("/it/vendors/add",
+                data={"name": "Example ISP", "category": "isp", "account_no": "ACCT-42",
+                      "contact_name": "Rep", "support_phone": "555 0100",
+                      "support_email": "help@example.com", "portal_url": "https://example.com",
+                      "contract_end": "2027-01-01", "notes": "24/7 line"}, follow_redirects=False)
+check("add vendor", r.status_code == 303, r.text[:300])
+check("bad vendor category", client.post("/it/vendors/add", data={"name": "x", "category": "zzz"}).status_code == 422)
+r = client.get("/it/vendors")
+check("vendor listed", "Example ISP" in r.text and "ACCT-42" in r.text and "tel:5550100" in r.text)
+check("vendor search", "Example ISP" in client.get("/it/vendors?q=acct").text)
+check("vendor category filter", "Example ISP" not in client.get("/it/vendors?category=hosting").text)
+vid = db.query_one("SELECT id FROM vendors WHERE name='Example ISP'")["id"]
+r = client.post(f"/it/vendors/{vid}/edit", data={"name": "Example ISP Inc", "category": "isp"},
+                follow_redirects=False)
+check("edit vendor", r.status_code == 303 and "Example ISP Inc" in client.get("/it/vendors").text)
+check("member blocked from vendors", member.get("/it/vendors").status_code == 403)
+client.post(f"/it/vendors/{vid}/delete")
+check("delete vendor", db.query_one("SELECT 1 FROM vendors WHERE id=?", (vid,)) is None)
+
+# ---------- IT: document engine ----------
+for sec in ("policies", "runbooks", "dr"):
+    check(f"docs section {sec}", client.get(f"/it/docs/{sec}").status_code == 200)
+check("unknown section 404", client.get("/it/docs/nope").status_code == 404)
+r = client.get("/it/docs/policies")
+check("starter policies seeded", "Acceptable Use Policy" in r.text and "Password and MFA Standard" in r.text)
+check("starter runbooks seeded", "VPN Setup" in client.get("/it/docs/runbooks").text)
+check("starter DR seeded", "Disaster Recovery Plan" in client.get("/it/docs/dr").text)
+check("seeded docs are drafts", db.query_one("SELECT COUNT(*) AS n FROM it_docs WHERE status != 'draft'")["n"] == 0)
+
+r = client.post("/it/docs/runbooks/new",
+                data={"title": "Printer reset", "content": "# Printer reset\n\n1. Unplug it.",
+                      "status": "active", "owner_id": uid1, "review_date": "2020-01-01"},
+                follow_redirects=False)
+check("create doc", r.status_code == 303 and r.headers["location"].startswith("/it/doc/"))
+did = int(r.headers["location"].rsplit("/", 1)[1])
+r = client.get(f"/it/doc/{did}")
+check("view doc renders markdown", "<h1>Printer reset</h1>" in r.text and "Unplug it" in r.text)
+check("doc listed in section", "Printer reset" in client.get("/it/docs/runbooks").text)
+check("doc search", "Printer reset" in client.get("/it/docs/runbooks?q=unplug").text)
+check("doc search misses", "Printer reset" not in client.get("/it/docs/runbooks?q=zzzz").text)
+check("overdue review on IT home", "Printer reset" in client.get("/it").text)
+check("bad doc status", client.post(f"/it/doc/{did}/edit", data={"title": "x", "status": "live"}).status_code == 422)
+
+r = client.post(f"/it/doc/{did}/edit",
+                data={"title": "Printer reset", "content": "# Printer reset\n\n1. Unplug it.\n2. Wait 30s.",
+                      "status": "active", "owner_id": uid1, "review_date": "2020-01-01"},
+                follow_redirects=False)
+check("edit doc", r.status_code == 303)
+check("two versions", db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 2)
+r = client.post(f"/it/doc/{did}/edit",
+                data={"title": "Printer reset", "content": "# Printer reset\n\n1. Unplug it.\n2. Wait 30s.",
+                      "status": "active", "owner_id": uid1, "review_date": "2030-01-01"},
+                follow_redirects=False)
+check("metadata-only edit adds no version",
+      db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 2)
+check("review no longer overdue", "Printer reset" not in client.get("/it").text)
+first = db.query_one("SELECT id FROM it_doc_versions WHERE doc_id=? ORDER BY id", (did,))["id"]
+check("version view", "Unplug it" in client.get(f"/it/doc/{did}/versions/{first}").text)
+r = client.post(f"/it/doc/{did}/versions/{first}/restore", follow_redirects=False)
+check("restore version", r.status_code == 303
+      and "Wait 30s" not in db.query_one("SELECT content FROM it_docs WHERE id=?", (did,))["content"]
+      and db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 3)
+r = client.post(f"/it/doc/{did}/reviewed", data={"months": "6"}, follow_redirects=False)
+check("mark reviewed", r.status_code == 303
+      and db.query_one("SELECT review_date FROM it_docs WHERE id=?", (did,))["review_date"] > _date.today().isoformat())
+check("bad review interval", client.post(f"/it/doc/{did}/reviewed", data={"months": "5"}).status_code == 422)
+client.post(f"/it/doc/{did}/status", data={"status": "retired"})
+check("retired hidden by default", "Printer reset" not in client.get("/it/docs/runbooks").text)
+check("retired shown with show=all", "Printer reset" in client.get("/it/docs/runbooks?show=all").text)
+check("member blocked from docs", member.get("/it/docs/policies").status_code == 403
+      and member.get(f"/it/doc/{did}").status_code == 403)
+client.post(f"/it/doc/{did}/delete")
+check("delete doc cascades versions",
+      db.query_one("SELECT 1 FROM it_docs WHERE id=?", (did,)) is None
+      and db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 0)
+check("home counts drafts", "Docs still in draft" in client.get("/it").text)
+
 print()
 print("ALL PASS" if not failures else f"{len(failures)} FAILURES: {failures}")
 shutil.rmtree(tmp, ignore_errors=True)

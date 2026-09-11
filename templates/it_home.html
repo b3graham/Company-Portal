@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}IT · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>IT</h1>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="stat-grid">
+  <a class="card stat" href="/it/assets" style="text-decoration:none">
+    <div class="stat-label">Active assets</div><div class="stat-value">{{ n_active }}</div></a>
+  <a class="card stat" href="/it/assets" style="text-decoration:none">
+    <div class="stat-label">Warranties ending ≤ 90 days</div>
+    <div class="stat-value {{ 'overdue' if warranties }}">{{ warranties | length }}</div></a>
+  <a class="card stat" href="/it/licenses" style="text-decoration:none">
+    <div class="stat-label">Active licenses</div><div class="stat-value">{{ n_licenses }}</div></a>
+  <a class="card stat" href="/it/licenses" style="text-decoration:none">
+    <div class="stat-label">Renewals due ≤ 30 days</div>
+    <div class="stat-value {{ 'overdue' if renewals }}">{{ renewals | length }}</div></a>
+  <a class="card stat" href="/it/licenses" style="text-decoration:none">
+    <div class="stat-label">Annual software spend</div><div class="stat-value">{{ annual | money }}</div></a>
+  <a class="card stat" href="/it/docs/policies" style="text-decoration:none">
+    <div class="stat-label">Docs past review</div>
+    <div class="stat-value {{ 'overdue' if reviews }}">{{ reviews | length }}</div></a>
+  <a class="card stat" href="/it/docs/policies" style="text-decoration:none">
+    <div class="stat-label">Docs still in draft</div><div class="stat-value">{{ drafts }}</div></a>
+  <a class="card stat" href="/it/vendors" style="text-decoration:none">
+    <div class="stat-label">Vendors on file</div><div class="stat-value">{{ n_vendors }}</div></a>
+</div>
+
+<div class="chart-grid">
+  <div class="card">
+    <div class="card-head"><h2>🔑 Renewals due soon</h2><a class="small" href="/it/licenses">all licenses</a></div>
+    {% if renewals %}
+    <table class="list">
+      <tr><th>Software</th><th>Renews</th><th>Cost</th><th></th></tr>
+      {% for l in renewals %}
+      <tr>
+        <td><a href="/it/licenses/{{ l.id }}/edit">{{ l.name }}</a>{% if l.vendor %} <span class="muted small">{{ l.vendor }}</span>{% endif %}</td>
+        <td class="nowrap {{ 'overdue' if l.renewal_date < today }}">{{ l.renewal_date }}</td>
+        <td class="nowrap">{{ l.cost_cents | money if l.cost_cents is not none else '—' }}</td>
+        <td class="small muted">{{ 'auto-renews' if l.auto_renew else 'manual' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted small">Nothing renews in the next 30 days.</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>🏷️ Warranties ending</h2><a class="small" href="/it/assets">all assets</a></div>
+    {% if warranties %}
+    <table class="list">
+      <tr><th>Asset</th><th>Assigned</th><th>Warranty ends</th></tr>
+      {% for a in warranties %}
+      <tr>
+        <td><a href="/it/assets/{{ a.id }}/edit">{{ a.tag or a.name }}</a>{% if a.tag %} <span class="muted small">{{ a.name }}</span>{% endif %}</td>
+        <td>{{ a.assignee or '—' }}</td>
+        <td class="nowrap {{ 'overdue' if a.warranty_end < today }}">{{ a.warranty_end }}{{ ' (expired)' if a.warranty_end < today }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted small">No active asset has a warranty ending in the next 90 days.</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>📜 Documents due for review</h2><a class="small" href="/it/docs/policies">policies</a></div>
+    {% if reviews %}
+    <table class="list">
+      <tr><th>Document</th><th>Owner</th><th>Review by</th></tr>
+      {% for d in reviews %}
+      <tr>
+        <td><span class="badge">{{ section_labels[d.section] }}</span> <a href="/it/doc/{{ d.id }}">{{ d.title }}</a></td>
+        <td>{{ d.owner or '—' }}</td>
+        <td class="nowrap overdue">{{ d.review_date }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted small">Every document is inside its review window.</p>{% endif %}
+    {% if drafts %}<p class="small muted">{{ drafts }} document{{ '' if drafts == 1 else 's' }} still in draft. Set an owner and review date, then mark active.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -11,12 +11,22 @@
 {% endif %}
 
 <table class="list">
-  <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+  <tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th><th></th></tr>
   {% for u in users %}
   <tr class="{{ 'inactive' if not u.active }}">
     <td>{{ u.name }}{% if u.title %} <span class="muted small">({{ u.title }})</span>{% endif %}</td>
     <td>{{ u.email }}</td>
     <td>{{ u.role }}</td>
+    <td>
+      <form method="post" action="/admin/users/{{ u.id }}/department" class="inline-form">
+        <select name="department" onchange="this.form.submit()" title="Department (admins always see every department tab)">
+          <option value="">—</option>
+          {% for key, label in departments.items() %}
+          <option value="{{ key }}" {{ 'selected' if u.department == key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </td>
     <td>{{ 'active' if u.active else 'deactivated' }}</td>
     <td class="row">
       <form method="post" action="/admin/users/{{ u.id }}/reset" data-confirm="Reset password for {{ u.email }}?">
@@ -43,6 +53,12 @@
       <select name="role">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
+      </select>
+    </label>
+    <label>Department
+      <select name="department">
+        <option value="">—</option>
+        {% for key, label in departments.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
       </select>
     </label>
     <button class="primary">Create user</button>

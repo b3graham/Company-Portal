@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}IT assets · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>IT asset tracker</h1>
+  <div class="row">
+    <a class="button secondary" href="/it/assets/export/assets.csv{{ qs }}">⬇ CSV</a>
+  </div>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">Active assets</div><div class="stat-value">{{ n_active }}</div></div>
+  <div class="card stat"><div class="stat-label">In service</div><div class="stat-value">{{ counts.get('in_service', 0) }}</div></div>
+  <div class="card stat"><div class="stat-label">Spare / in repair</div><div class="stat-value">{{ counts.get('spare', 0) + counts.get('repair', 0) }}</div></div>
+  <div class="card stat"><div class="stat-label">Unassigned in service</div><div class="stat-value">{{ unassigned }}</div></div>
+  <div class="card stat"><div class="stat-label">Warranty ends ≤ 90 days</div><div class="stat-value {{ 'overdue' if warranty_soon }}">{{ warranty_soon }}</div></div>
+  <div class="card stat"><div class="stat-label">Active asset value</div><div class="stat-value">{{ value | money }}</div></div>
+</div>
+
+<details class="composer">
+  <summary>＋ Add an asset</summary>
+  <form method="post" action="/it/assets/add" class="stack">
+    <div class="field-grid">
+      <label>Asset tag <input type="text" name="tag" placeholder="SK-0001"></label>
+      <label>Name <input type="text" name="name" placeholder="Earl's laptop" required></label>
+      <label>Type
+        <select name="type">
+          {% for t in types %}<option value="{{ t }}" {{ 'selected' if t == 'laptop' }}>{{ type_labels[t] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Make <input type="text" name="make" placeholder="Dell"></label>
+      <label>Model <input type="text" name="model" placeholder="Latitude 5550"></label>
+      <label>Serial number <input type="text" name="serial"></label>
+      <label>Purchase date <input type="date" name="purchase_date"></label>
+      <label>Cost <input type="text" name="cost" inputmode="decimal" placeholder="0.00"></label>
+      <label>Vendor <input type="text" name="vendor" placeholder="Where it was bought"></label>
+      <label>In service date <input type="date" name="in_service_date" value="{{ today }}"></label>
+      <label>Status
+        <select name="status">
+          {% for s in statuses %}<option value="{{ s }}">{{ status_labels[s] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Assigned to
+        <select name="assigned_to">
+          <option value="">— unassigned —</option>
+          {% for p in people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Location <input type="text" name="location" placeholder="Office, home, truck…"></label>
+      <label>Warranty ends <input type="date" name="warranty_end"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional)">
+    <button class="primary">Add asset</button>
+  </form>
+</details>
+
+<form method="get" action="/it/assets" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search tag, name, serial, model, owner…" class="filter-entity">
+  <select name="status" class="filter-entity">
+    <option value="active" {{ 'selected' if status == 'active' }}>Active (in service, spare, repair)</option>
+    <option value="" {{ 'selected' if status == '' }}>All statuses</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ status_labels[s] }}</option>{% endfor %}
+  </select>
+  <select name="type" class="filter-entity">
+    <option value="">All types</option>
+    {% for t in types %}<option value="{{ t }}" {{ 'selected' if type == t }}>{{ type_labels[t] }}</option>{% endfor %}
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ rows | length }}</strong> asset{{ '' if rows|length == 1 else 's' }} shown</span>
+</form>
+
+<div style="overflow-x: auto">
+<table class="list">
+  <tr>
+    <th>Tag</th><th>Asset</th><th>Type</th><th>Serial</th><th>Purchased</th><th>In service</th>
+    <th>Assigned</th><th>Location</th><th>Warranty</th><th>Status</th><th></th>
+  </tr>
+  {% for a in rows %}
+  <tr class="{{ 'inactive' if a.status in ('retired', 'disposed') }}">
+    <td class="nowrap"><strong>{{ a.tag or '—' }}</strong></td>
+    <td>
+      {{ a.name }}
+      {% if a.make or a.model %}<div class="muted small">{{ a.make }} {{ a.model }}</div>{% endif %}
+      {% if a.notes %}<div class="muted small">{{ a.notes }}</div>{% endif %}
+    </td>
+    <td class="nowrap">{{ type_labels[a.type] }}</td>
+    <td class="nowrap"><code>{{ a.serial or '—' }}</code></td>
+    <td class="nowrap">{{ a.purchase_date or '—' }}{% if a.cost_cents is not none %}<div class="muted small">{{ a.cost_cents | money }}</div>{% endif %}</td>
+    <td class="nowrap">{{ a.in_service_date or '—' }}</td>
+    <td class="nowrap">{{ a.assignee or '—' }}</td>
+    <td>{{ a.location or '—' }}</td>
+    <td class="nowrap {{ 'overdue' if a.warranty_end and a.warranty_end < today else ('small' if a.warranty_end and a.warranty_end <= soon) }}">
+      {{ a.warranty_end or '—' }}{% if a.warranty_end and a.warranty_end < today %} (expired){% elif a.warranty_end and a.warranty_end <= soon %} (soon){% endif %}
+    </td>
+    <td>
+      <form method="post" action="/it/assets/{{ a.id }}/status" class="inline-form">
+        <select name="status" onchange="this.form.submit()">
+          {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == a.status }}>{{ status_labels[s] }}</option>{% endfor %}
+        </select>
+      </form>
+    </td>
+    <td class="row nowrap">
+      <a class="small" href="/it/assets/{{ a.id }}/edit">Edit</a>
+      <form method="post" action="/it/assets/{{ a.id }}/delete" data-confirm="Delete {{ a.name }}? This cannot be undone.">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="11" class="muted empty">No assets match. Add one above or widen the filter.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

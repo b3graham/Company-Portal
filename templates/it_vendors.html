@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Vendors & support · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Vendors &amp; support contacts</h1>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<p class="muted small">The page to have open during an outage: account numbers, support lines, and portals for every provider. Keep passwords in the password manager, not here.</p>
+
+<details class="composer">
+  <summary>＋ Add a vendor</summary>
+  <form method="post" action="/it/vendors/add" class="stack">
+    <div class="field-grid">
+      <label>Vendor <input type="text" name="name" placeholder="Hostinger" required></label>
+      <label>Category
+        <select name="category">
+          {% for c in categories %}<option value="{{ c }}">{{ cat_labels[c] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Account number <input type="text" name="account_no"></label>
+      <label>Contact name <input type="text" name="contact_name" placeholder="Rep or account manager"></label>
+      <label>Support phone <input type="text" name="support_phone"></label>
+      <label>Support email <input type="text" name="support_email"></label>
+      <label>Portal URL <input type="url" name="portal_url" placeholder="https://"></label>
+      <label>Contract ends <input type="date" name="contract_end"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional) — support hours, SLA, what they cover">
+    <button class="primary">Add vendor</button>
+  </form>
+</details>
+
+<form method="get" action="/it/vendors" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search vendor, account, contact…" class="filter-entity">
+  <select name="category" class="filter-entity">
+    <option value="">All categories</option>
+    {% for c in categories %}<option value="{{ c }}" {{ 'selected' if category == c }}>{{ cat_labels[c] }}</option>{% endfor %}
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ rows | length }}</strong> shown</span>
+</form>
+
+<div style="overflow-x: auto">
+<table class="list">
+  <tr><th>Vendor</th><th>Category</th><th>Account #</th><th>Support</th><th>Contact</th><th>Contract ends</th><th></th></tr>
+  {% for v in rows %}
+  <tr>
+    <td>
+      <strong>{{ v.name }}</strong>
+      {% if v.portal_url %}<div class="small"><a href="{{ v.portal_url }}" target="_blank" rel="noopener">portal ↗</a></div>{% endif %}
+      {% if v.notes %}<div class="muted small">{{ v.notes }}</div>{% endif %}
+    </td>
+    <td class="nowrap">{{ cat_labels[v.category] }}</td>
+    <td class="nowrap"><code>{{ v.account_no or '—' }}</code></td>
+    <td class="nowrap">
+      {% if v.support_phone %}<div>📞 <a href="tel:{{ v.support_phone | replace(' ', '') }}">{{ v.support_phone }}</a></div>{% endif %}
+      {% if v.support_email %}<div>✉️ <a href="mailto:{{ v.support_email }}">{{ v.support_email }}</a></div>{% endif %}
+      {% if not v.support_phone and not v.support_email %}—{% endif %}
+    </td>
+    <td>{{ v.contact_name or '—' }}</td>
+    <td class="nowrap {{ 'overdue' if v.contract_end and v.contract_end < today else ('small' if v.contract_end and v.contract_end <= soon) }}">{{ v.contract_end or '—' }}</td>
+    <td class="row nowrap">
+      <a class="small" href="/it/vendors/{{ v.id }}/edit">Edit</a>
+      <form method="post" action="/it/vendors/{{ v.id }}/delete" data-confirm="Delete {{ v.name }}?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted empty">No vendors yet. Start with your ISP, hosting, and registrar.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

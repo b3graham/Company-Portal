@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Software & licenses · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Software &amp; licenses</h1>
+  <div class="row">
+    <a class="button secondary" href="/it/licenses/export/licenses.csv{{ qs }}">⬇ CSV</a>
+  </div>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">Active subscriptions</div><div class="stat-value">{{ n_active }}</div></div>
+  <div class="card stat"><div class="stat-label">Renewals due ≤ 30 days</div><div class="stat-value {{ 'overdue' if due }}">{{ due }}</div></div>
+  <div class="card stat"><div class="stat-label">Seats in use</div><div class="stat-value">{{ seats }}</div></div>
+  <div class="card stat"><div class="stat-label">Annualized spend</div><div class="stat-value">{{ annual | money }}</div></div>
+</div>
+
+<details class="composer">
+  <summary>＋ Add software or a license</summary>
+  <form method="post" action="/it/licenses/add" class="stack">
+    <div class="field-grid">
+      <label>Name <input type="text" name="name" placeholder="Microsoft 365 Business" required></label>
+      <label>Vendor <input type="text" name="vendor" placeholder="Microsoft"></label>
+      <label>Category
+        <select name="category">
+          {% for c in categories %}<option value="{{ c }}">{{ cat_labels[c] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Seats <input type="text" name="seats" inputmode="numeric" placeholder="e.g. 5"></label>
+      <label>Cost <input type="text" name="cost" inputmode="decimal" placeholder="0.00"></label>
+      <label>Billing
+        <select name="billing">
+          {% for b in billing %}<option value="{{ b }}">{{ billing_labels[b] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Renewal date <input type="date" name="renewal_date"></label>
+      <label class="checkbox"><input type="checkbox" name="auto_renew" value="1"> Auto-renews</label>
+      <label>Owner
+        <select name="owner_id">
+          <option value="">—</option>
+          {% for p in people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Login URL <input type="url" name="login_url" placeholder="https://"></label>
+      <label>Account / admin email <input type="text" name="account" placeholder="Which login owns it"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional) — never store the password here; use the password manager">
+    <button class="primary">Add</button>
+  </form>
+</details>
+
+<form method="get" action="/it/licenses" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name, vendor, account, owner…" class="filter-entity">
+  <select name="status" class="filter-entity">
+    <option value="active" {{ 'selected' if status == 'active' }}>Active</option>
+    <option value="cancelled" {{ 'selected' if status == 'cancelled' }}>Cancelled</option>
+    <option value="" {{ 'selected' if status == '' }}>All</option>
+  </select>
+  <select name="category" class="filter-entity">
+    <option value="">All categories</option>
+    {% for c in categories %}<option value="{{ c }}" {{ 'selected' if category == c }}>{{ cat_labels[c] }}</option>{% endfor %}
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ rows | length }}</strong> shown</span>
+</form>
+
+<div style="overflow-x: auto">
+<table class="list">
+  <tr>
+    <th>Software</th><th>Category</th><th>Seats</th><th>Cost</th><th>Renews</th>
+    <th>Owner</th><th>Account</th><th></th>
+  </tr>
+  {% for l in rows %}
+  <tr class="{{ 'inactive' if l.status == 'cancelled' }}">
+    <td>
+      <strong>{{ l.name }}</strong>{% if l.vendor %} <span class="muted small">{{ l.vendor }}</span>{% endif %}
+      {% if l.login_url %}<div class="small"><a href="{{ l.login_url }}" target="_blank" rel="noopener">open login ↗</a></div>{% endif %}
+      {% if l.notes %}<div class="muted small">{{ l.notes }}</div>{% endif %}
+    </td>
+    <td class="nowrap">{{ cat_labels[l.category] }}</td>
+    <td class="num">{{ l.seats if l.seats is not none else '—' }}</td>
+    <td class="nowrap">{{ l.cost_cents | money if l.cost_cents is not none else '—' }}<div class="muted small">{{ billing_labels[l.billing] }}</div></td>
+    <td class="nowrap {{ 'overdue' if l.renewal_date and l.renewal_date < today else ('small' if l.renewal_date and l.renewal_date <= renew_soon) }}">
+      {{ l.renewal_date or '—' }}{% if l.renewal_date and l.renewal_date < today %} (past){% elif l.renewal_date and l.renewal_date <= renew_soon %} (soon){% endif %}
+      {% if l.renewal_date %}<div class="muted small">{{ 'auto-renews' if l.auto_renew else 'manual' }}</div>{% endif %}
+    </td>
+    <td>{{ l.owner or '—' }}</td>
+    <td class="small">{{ l.account or '—' }}</td>
+    <td class="row nowrap">
+      <a class="small" href="/it/licenses/{{ l.id }}/edit">Edit</a>
+      <form method="post" action="/it/licenses/{{ l.id }}/delete" data-confirm="Delete {{ l.name }}?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted empty">Nothing here yet. Add your subscriptions, domains, and tooling above.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

@@ -71,6 +71,22 @@ def require_admin(user=Depends(require_user)):
     return user
 
 
+# Departments gate department-only sections of the portal. Admins see everything.
+DEPARTMENTS = {"it": "IT"}
+
+
+def in_department(user, dept: str) -> bool:
+    return user["role"] == "admin" or user["department"] == dept
+
+
+def require_department(dept: str):
+    def dep(user=Depends(require_user)):
+        if not in_department(user, dept):
+            raise HTTPException(403, f"{DEPARTMENTS.get(dept, dept)} department only")
+        return user
+    return dep
+
+
 def _set_session_cookie(response, token):
     response.set_cookie(
         "session", token,
@@ -182,21 +198,33 @@ def add_user(
     request: Request,
     admin=Depends(require_admin),
     name: str = Form(...), email: str = Form(...),
-    title: str = Form(""), role: str = Form("member"),
+    title: str = Form(""), role: str = Form("member"), department: str = Form(""),
 ):
     if role not in ("admin", "member"):
         raise HTTPException(422, "bad role")
+    if department and department not in DEPARTMENTS:
+        raise HTTPException(422, "bad department")
     email = email.strip().lower()
     if db.query_one("SELECT id FROM users WHERE email = ?", (email,)):
         return RedirectResponse("/admin/users?msg=That+email+already+exists", status_code=303)
     temp = secrets.token_urlsafe(9)
     db.execute(
-        "INSERT INTO users (email, name, title, password_hash, role) VALUES (?, ?, ?, ?, ?)",
-        (email, name.strip(), title.strip(), hash_password(temp), role),
+        "INSERT INTO users (email, name, title, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)",
+        (email, name.strip(), title.strip(), hash_password(temp), role, department),
     )
     users = db.query("SELECT * FROM users ORDER BY active DESC, name")
     return page(request, "users.html", user=admin, users=users,
                 new_password=temp, new_password_for=email)
+
+
+@router.post("/admin/users/{uid}/department")
+def set_department(uid: int, admin=Depends(require_admin), department: str = Form("")):
+    if department and department not in DEPARTMENTS:
+        raise HTTPException(422, "bad department")
+    if not db.query_one("SELECT 1 FROM users WHERE id = ?", (uid,)):
+        raise HTTPException(404)
+    db.execute("UPDATE users SET department = ? WHERE id = ?", (department, uid))
+    return RedirectResponse("/admin/users?msg=Department+saved", status_code=303)
 
 
 @router.post("/admin/users/{uid}/reset")

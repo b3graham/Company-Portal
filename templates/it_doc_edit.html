@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if doc else 'New' }} · {{ meta.label }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Edit: ' + doc.title if doc else 'New ' + meta.label | lower + ' document' }}</h1>
+</div>
+
+<form method="post" action="{{ '/it/doc/' + (doc.id | string) + '/edit' if doc else '/it/docs/' + section + '/new' }}" class="stack editor">
+  <input type="text" name="title" value="{{ doc.title if doc else '' }}" placeholder="Title" required>
+  <div class="field-grid">
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if doc and s == doc.status }}>{{ status_labels[s] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Owner
+      <select name="owner_id">
+        <option value="">—</option>
+        {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if doc and p.id == doc.owner_id }}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Next review <input type="date" name="review_date" value="{{ doc.review_date if doc else '' }}"></label>
+  </div>
+  <textarea id="editor-content" name="content" rows="24"
+            placeholder="Write in markdown — # headings, **bold**, - lists, tables, ```code```">{{ doc.content if doc else '' }}</textarea>
+  <div id="preview" class="md preview" hidden></div>
+  <div class="row">
+    <button class="primary">Save</button>
+    <button type="button" id="preview-toggle" class="secondary">Preview</button>
+    <a class="button secondary" href="{{ '/it/doc/' + (doc.id | string) if doc else '/it/docs/' + section }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.label }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ meta.icon }} {{ meta.label }}</h1>
+  <a class="button primary" href="/it/docs/{{ section }}/new">＋ New document</a>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<p class="muted small">{{ meta.blurb }}</p>
+
+<form method="get" action="/it/docs/{{ section }}" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search title or content…" class="filter-entity">
+  <select name="show" class="filter-entity">
+    <option value="current" {{ 'selected' if show != 'all' }}>Draft and active</option>
+    <option value="all" {{ 'selected' if show == 'all' }}>Include retired</option>
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ rows | length }}</strong> shown</span>
+</form>
+
+<table class="list">
+  <tr><th>Document</th><th>Status</th><th>Owner</th><th>Review by</th><th>Last edited</th><th></th></tr>
+  {% for d in rows %}
+  <tr class="{{ 'inactive' if d.status == 'retired' }}">
+    <td><a href="/it/doc/{{ d.id }}"><strong>{{ d.title }}</strong></a></td>
+    <td>
+      <form method="post" action="/it/doc/{{ d.id }}/status" class="inline-form">
+        <select name="status" onchange="this.form.submit()">
+          {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == d.status }}>{{ status_labels[s] }}</option>{% endfor %}
+        </select>
+      </form>
+    </td>
+    <td>{{ d.owner or '—' }}</td>
+    <td class="nowrap {{ 'overdue' if d.review_date and d.review_date <= today and d.status != 'retired' }}">
+      {{ d.review_date or '—' }}{% if d.review_date and d.review_date <= today and d.status != 'retired' %} (due){% endif %}
+    </td>
+    <td class="nowrap small muted">{{ d.updated_at[:16].replace('T', ' ') }} · {{ d.editor or '—' }}</td>
+    <td class="row nowrap">
+      <a class="small" href="/it/doc/{{ d.id }}/edit">Edit</a>
+      <form method="post" action="/it/doc/{{ d.id }}/delete" data-confirm="Delete '{{ d.title }}' and its history?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted empty">No documents here yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
