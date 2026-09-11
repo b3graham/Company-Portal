@@ -21,7 +21,10 @@ FastAPI + SQLite + Jinja2. No external services; everything lives in `data/`.
 | · Assets `/it/assets` | Hardware tracker: tag, serial, purchase date, cost, in-service date, assignment, warranty, lifecycle status; CSV export |
 | · Software & licenses `/it/licenses` | Subscriptions and seats with renewal date, billing cadence, owner, login location; annualized spend; CSV export |
 | · Vendors `/it/vendors` | Support contacts: account numbers, phone, email, portal, contract end |
-| · Policies / Runbooks / Disaster recovery `/it/docs/…` | Markdown docs with version history, owner, status (draft/active/retired) and next-review date; seeded with starter outlines on first run |
+| · Access `/it/access` | Who holds access to which system, with level, MFA flag, review dates; per-person "reviewed" and "revoke all" for quarterly reviews and offboarding; CSV export |
+| · Backups `/it/backups` | Backup inventory (method, frequency, retention, location, off-site) with a restore-test log; flags anything untested in 180 days |
+| · Incidents `/it/incidents` | Incident log with severity, status, lead, dated timeline, lessons learned; links to the IR plan docs; CSV export |
+| · Policies / Runbooks / Disaster recovery / IR plan `/it/docs/…` | Markdown docs with version history, owner, status (draft/active/retired) and next-review date; seeded with starter outlines on first run |
 
 ## Run locally
 

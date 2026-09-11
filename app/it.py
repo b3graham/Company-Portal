@@ -44,7 +44,7 @@ VENDOR_CAT_LABELS = {"isp": "Internet provider", "hosting": "Hosting / cloud",
                      "software": "Software", "telecom": "Phone / telecom",
                      "msp": "Managed service", "other": "Other"}
 
-SECTION_LABELS = {"policies": "Policy", "runbooks": "Runbook", "dr": "DR"}
+SECTION_LABELS = {"policies": "Policy", "runbooks": "Runbook", "dr": "DR", "ir": "IR plan"}
 
 REVIEW_WINDOW_DAYS = 90   # warranties
 RENEWAL_WINDOW_DAYS = 30  # licenses
@@ -139,9 +139,27 @@ def it_home(request: Request, user=Depends(require_it)):
                                             WHEN 'annual' THEN cost_cents ELSE 0 END), 0) AS c
            FROM licenses WHERE status = 'active'""")["c"]
     n_vendors = db.query_one("SELECT COUNT(*) AS n FROM vendors")["n"]
+    stale = (date.today() - timedelta(days=90)).isoformat()
+    access = db.query_one(
+        """SELECT SUM(CASE WHEN g.last_review = '' OR g.last_review < ? THEN 1 ELSE 0 END) AS unreviewed,
+                  SUM(CASE WHEN g.mfa = 0 THEN 1 ELSE 0 END) AS no_mfa,
+                  SUM(CASE WHEN u.id IS NOT NULL AND u.active = 0 THEN 1 ELSE 0 END) AS orphaned
+           FROM access_grants g LEFT JOIN users u ON u.id = g.user_id WHERE g.revoked = ''""",
+        (stale,))
+    test_due = (date.today() - timedelta(days=180)).isoformat()
+    backups_due = db.query_one(
+        """SELECT COUNT(*) AS n FROM backups b WHERE b.active = 1 AND COALESCE(
+             (SELECT MAX(tested_on) FROM backup_tests t WHERE t.backup_id = b.id), '') < ?""",
+        (test_due,))["n"]
+    incidents = db.query(
+        """SELECT i.id, i.title, i.severity, i.status, i.detected_on, u.name AS lead
+           FROM incidents i LEFT JOIN users u ON u.id = i.lead_id WHERE i.status != 'closed'
+           ORDER BY CASE i.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+                                    WHEN 'medium' THEN 2 ELSE 3 END, i.detected_on""")
     return page(request, "it_home.html", user=user, tab="home", today=today,
                 n_active=n_active, warranties=warranties, renewals=renewals, reviews=reviews,
                 drafts=drafts, n_licenses=n_licenses, annual=annual, n_vendors=n_vendors,
+                access=access, backups_due=backups_due, incidents=incidents,
                 section_labels=SECTION_LABELS)
 
 

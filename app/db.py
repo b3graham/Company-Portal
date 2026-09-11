@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS vendors (
 
 CREATE TABLE IF NOT EXISTS it_docs (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    section     TEXT NOT NULL CHECK (section IN ('policies', 'runbooks', 'dr')),
+    section     TEXT NOT NULL,
     title       TEXT NOT NULL,
     content     TEXT NOT NULL DEFAULT '',
     status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'retired')),
@@ -313,6 +313,65 @@ CREATE TABLE IF NOT EXISTS it_doc_versions (
     saved_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_it_versions_doc ON it_doc_versions (doc_id, saved_at);
+
+CREATE TABLE IF NOT EXISTS access_grants (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    person      TEXT NOT NULL DEFAULT '',
+    system      TEXT NOT NULL,
+    level       TEXT NOT NULL DEFAULT 'user' CHECK (level IN ('admin', 'user', 'readonly')),
+    mfa         INTEGER NOT NULL DEFAULT 0,
+    granted     TEXT NOT NULL DEFAULT '',
+    last_review TEXT NOT NULL DEFAULT '',
+    revoked     TEXT NOT NULL DEFAULT '',
+    notes       TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS backups (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    system     TEXT NOT NULL,
+    method     TEXT NOT NULL DEFAULT '',
+    frequency  TEXT NOT NULL DEFAULT '',
+    retention  TEXT NOT NULL DEFAULT '',
+    location   TEXT NOT NULL DEFAULT '',
+    offsite    INTEGER NOT NULL DEFAULT 0,
+    owner_id   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    active     INTEGER NOT NULL DEFAULT 1,
+    notes      TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS backup_tests (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    backup_id INTEGER NOT NULL REFERENCES backups(id) ON DELETE CASCADE,
+    tested_on TEXT NOT NULL,
+    result    TEXT NOT NULL CHECK (result IN ('pass', 'partial', 'fail')),
+    tested_by INTEGER REFERENCES users(id),
+    notes     TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_backup_tests ON backup_tests (backup_id, tested_on);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    severity    TEXT NOT NULL DEFAULT 'medium'
+                CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    status      TEXT NOT NULL DEFAULT 'open'
+                CHECK (status IN ('open', 'contained', 'resolved', 'closed')),
+    detected_on TEXT NOT NULL,
+    closed_on   TEXT NOT NULL DEFAULT '',
+    lead_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    systems     TEXT NOT NULL DEFAULT '',
+    summary     TEXT NOT NULL DEFAULT '',
+    timeline    TEXT NOT NULL DEFAULT '',
+    lessons     TEXT NOT NULL DEFAULT '',
+    created_by  INTEGER REFERENCES users(id),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 TICKER_DEFAULTS = [
@@ -372,15 +431,44 @@ def init():
                 continue
             conn.executemany("INSERT INTO expense_lists (kind, name) VALUES (?, ?)",
                              [(kind, n) for n in names])
-        if not conn.execute("SELECT 1 FROM it_docs LIMIT 1").fetchone():
-            from .it_doc_seed import STARTER_DOCS
-            for section, title, content in STARTER_DOCS:
+        # Migration: it_docs once had a CHECK on section; rebuild it without one so new
+        # sections can be added in code. Done in the order SQLite documents (create new,
+        # copy, drop old, rename) with FK enforcement off so it_doc_versions is untouched.
+        ddl = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'it_docs'").fetchone()
+        if ddl and "CHECK (section IN" in ddl[0]:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            conn.executescript("""
+                CREATE TABLE it_docs_new (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    section     TEXT NOT NULL,
+                    title       TEXT NOT NULL,
+                    content     TEXT NOT NULL DEFAULT '',
+                    status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'retired')),
+                    owner_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    review_date TEXT NOT NULL DEFAULT '',
+                    updated_by  INTEGER REFERENCES users(id),
+                    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO it_docs_new SELECT * FROM it_docs;
+                DROP TABLE it_docs;
+                ALTER TABLE it_docs_new RENAME TO it_docs;
+            """)
+            conn.execute("PRAGMA foreign_keys = ON")
+        # Seed starter docs for any IT section that is still empty (new sections get theirs later).
+        from .it_doc_seed import STARTER_DOCS
+        for section, title, content in STARTER_DOCS:
+            if conn.execute("SELECT 1 FROM it_docs WHERE section = ? LIMIT 1", (section,)).fetchone():
+                continue
+            for s2, t2, c2 in STARTER_DOCS:
+                if s2 != section:
+                    continue
                 cur = conn.execute(
                     "INSERT INTO it_docs (section, title, content, status) VALUES (?, ?, ?, 'draft')",
-                    (section, title, content))
+                    (s2, t2, c2))
                 conn.execute(
                     "INSERT INTO it_doc_versions (doc_id, title, content) VALUES (?, ?, ?)",
-                    (cur.lastrowid, title, content))
+                    (cur.lastrowid, t2, c2))
         if not conn.execute("SELECT 1 FROM challenges LIMIT 1").fetchone():
             import json
 

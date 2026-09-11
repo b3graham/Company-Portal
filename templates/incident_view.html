@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Incident #{{ inc.id }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>#{{ inc.id }} {{ inc.title }}
+    <span class="badge {{ 'overdue' if inc.severity in ('high', 'critical') and inc.status != 'closed' }}">{{ severity_labels[inc.severity] }}</span>
+    <span class="badge">{{ status_labels[inc.status] }}</span>
+  </h1>
+  <div class="row">
+    <a class="button primary" href="/it/incidents/{{ inc.id }}/edit">Edit</a>
+    <a class="button" href="/it/incidents">← All incidents</a>
+  </div>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="meta">
+  detected {{ inc.detected_on }}{% if inc.closed_on %} · closed {{ inc.closed_on }}{% endif %} ·
+  lead {{ inc.lead or '—' }} · opened by {{ inc.reporter or '—' }}
+  {% if inc.systems %} · systems: {{ inc.systems }}{% endif %}
+</div>
+
+<form method="post" action="/it/incidents/{{ inc.id }}/status" class="row small" style="margin:0.6rem 0 0.9rem">
+  <span class="muted">Set status</span>
+  {% for s in statuses %}
+  <button name="status" value="{{ s }}" class="{{ 'primary' if s == inc.status }}" {{ 'disabled' if s == inc.status }}>{{ status_labels[s] }}</button>
+  {% endfor %}
+</form>
+
+{% if inc.summary %}<div class="card"><strong>Summary.</strong> {{ inc.summary }}</div>{% endif %}
+
+<div class="card">
+  <div class="card-head"><h2>Timeline</h2></div>
+  <div class="md">{{ inc.timeline | md | safe }}</div>
+  <form method="post" action="/it/incidents/{{ inc.id }}/note" class="row" style="margin-top:0.6rem">
+    <input type="text" name="note" placeholder="Add a dated timeline entry — what you did or found" required style="flex:1">
+    <button>Add entry</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Lessons learned</h2></div>
+  {% if inc.lessons %}<div class="md">{{ inc.lessons | md | safe }}</div>
+  {% else %}<p class="muted small">Not written yet. Fill this in before closing: what would have prevented it, and which policy or runbook changes as a result.</p>{% endif %}
+</div>
+{% endblock %}

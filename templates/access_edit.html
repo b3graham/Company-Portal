@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Edit access · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit access: {{ grant.system }}</h1>
+  <a class="button" href="/it/access">← Back to access</a>
+</div>
+
+<div class="card">
+  <form method="post" action="/it/access/{{ grant.id }}/edit" class="stack">
+    <div class="field-grid">
+      <label>Portal user
+        <select name="user_id">
+          <option value="">— not a portal user —</option>
+          {% for p in users %}<option value="{{ p.id }}" {{ 'selected' if p.id == grant.user_id }}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>…or outside person <input type="text" name="person" value="{{ grant.person }}"></label>
+      <label>System <input type="text" name="system" list="systems" value="{{ grant.system }}" required></label>
+      <label>Level
+        <select name="level">
+          {% for l in levels %}<option value="{{ l }}" {{ 'selected' if l == grant.level }}>{{ level_labels[l] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="checkbox"><input type="checkbox" name="mfa" value="1" {{ 'checked' if grant.mfa }}> MFA enabled</label>
+      <label>Granted <input type="date" name="granted" value="{{ grant.granted }}"></label>
+      <label>Last review <input type="date" name="last_review" value="{{ grant.last_review }}"></label>
+      <label>Revoked <input type="date" name="revoked" value="{{ grant.revoked }}"></label>
+    </div>
+    <label>Notes <input type="text" name="notes" value="{{ grant.notes }}"></label>
+    <button class="primary">Save changes</button>
+  </form>
+</div>
+<datalist id="systems">{% for s in systems %}<option value="{{ s }}">{% endfor %}</datalist>
+{% endblock %}

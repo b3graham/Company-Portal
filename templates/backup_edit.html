@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Edit backup · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ backup.system }}</h1>
+  <a class="button" href="/it/backups">← Back to backups</a>
+</div>
+
+<div class="chart-grid">
+  <div class="card">
+    <h2>Backup details</h2>
+    <form method="post" action="/it/backups/{{ backup.id }}/edit" class="stack">
+      <label>System <input type="text" name="system" value="{{ backup.system }}" required></label>
+      <label>Method <input type="text" name="method" value="{{ backup.method }}"></label>
+      <label>Frequency <input type="text" name="frequency" value="{{ backup.frequency }}"></label>
+      <label>Retention <input type="text" name="retention" value="{{ backup.retention }}"></label>
+      <label>Location <input type="text" name="location" value="{{ backup.location }}"></label>
+      <label class="checkbox"><input type="checkbox" name="offsite" value="1" {{ 'checked' if backup.offsite }}> Copy exists off the source machine</label>
+      <label>Owner
+        <select name="owner_id">
+          <option value="">—</option>
+          {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if p.id == backup.owner_id }}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Notes <input type="text" name="notes" value="{{ backup.notes }}"></label>
+      <label class="checkbox"><input type="checkbox" name="active" value="1" {{ 'checked' if backup.active }}> Active (untick when this backup is retired)</label>
+      <button class="primary">Save changes</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Restore test history</h2>
+    <form method="post" action="/it/backups/{{ backup.id }}/test" class="stack" style="margin-bottom:0.9rem">
+      <div class="field-grid">
+        <label>Tested on <input type="date" name="tested_on" value="{{ today }}"></label>
+        <label>Result
+          <select name="result">
+            {% for r in results %}<option value="{{ r }}">{{ result_labels[r] }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <input type="text" name="notes" placeholder="What was restored, how long it took, what broke">
+      <button>Log test</button>
+    </form>
+    {% if tests %}
+    <table class="list">
+      <tr><th>Date</th><th>Result</th><th>By</th><th>Notes</th><th></th></tr>
+      {% for t in tests %}
+      <tr>
+        <td class="nowrap">{{ t.tested_on }}</td>
+        <td class="nowrap {{ 'overdue' if t.result != 'pass' }}">{{ result_labels[t.result] }}</td>
+        <td>{{ t.tester or '—' }}</td>
+        <td class="small">{{ t.notes }}</td>
+        <td><form method="post" action="/it/backups/tests/{{ t.id }}/delete" data-confirm="Remove this test entry?"><button class="danger-link">✕</button></form></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted small">No restore test logged yet.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

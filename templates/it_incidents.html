@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Incidents · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Incident response</h1>
+  <a class="button secondary" href="/it/incidents/export/incidents.csv">⬇ CSV</a>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">Open incidents</div><div class="stat-value {{ 'overdue' if stats.open }}">{{ stats.open or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Open high / critical</div><div class="stat-value {{ 'overdue' if stats.urgent }}">{{ stats.urgent or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Logged in {{ year }}</div><div class="stat-value">{{ stats.this_year or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Closed in {{ year }}</div><div class="stat-value">{{ stats.closed_year or 0 }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>📕 Response plan</h2>
+    <a class="small" href="/it/docs/ir">manage plan documents</a>
+  </div>
+  {% if plan_docs %}
+  <div class="row">
+    {% for d in plan_docs %}
+    <a class="button {{ 'secondary' if d.status == 'active' }}" href="/it/doc/{{ d.id }}">{{ d.title }}{% if d.status != 'active' %} <span class="badge">{{ d.status }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted small">No response plan yet. <a href="/it/docs/ir/new">Write one</a>.</p>{% endif %}
+</div>
+
+<details class="composer" {{ 'open' if not rows }}>
+  <summary>🚨 Open an incident</summary>
+  <form method="post" action="/it/incidents/add" class="stack">
+    <div class="field-grid">
+      <label>Title <input type="text" name="title" placeholder="Phishing click on finance mailbox" required></label>
+      <label>Severity
+        <select name="severity">
+          {% for s in severities %}<option value="{{ s }}" {{ 'selected' if s == 'medium' }}>{{ severity_labels[s] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Detected on <input type="date" name="detected_on" value="{{ today }}"></label>
+      <label>Incident lead
+        <select name="lead_id">
+          <option value="">—</option>
+          {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if p.id == user.id }}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Systems affected <input type="text" name="systems" placeholder="Mailbox, laptop SK-0003"></label>
+    </div>
+    <input type="text" name="summary" placeholder="What was seen, in one or two sentences">
+    <button class="primary">Open incident</button>
+  </form>
+</details>
+
+<form method="get" action="/it/incidents" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search title, systems, timeline…" class="filter-entity">
+  <select name="status" class="filter-entity">
+    <option value="active" {{ 'selected' if status == 'active' }}>Not closed</option>
+    <option value="" {{ 'selected' if status == '' }}>All</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ status_labels[s] }}</option>{% endfor %}
+  </select>
+  <select name="severity" class="filter-entity">
+    <option value="">All severities</option>
+    {% for s in severities %}<option value="{{ s }}" {{ 'selected' if severity == s }}>{{ severity_labels[s] }}</option>{% endfor %}
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ rows | length }}</strong> shown</span>
+</form>
+
+<table class="list">
+  <tr><th>#</th><th>Incident</th><th>Severity</th><th>Status</th><th>Detected</th><th>Closed</th><th>Lead</th><th></th></tr>
+  {% for i in rows %}
+  <tr class="{{ 'inactive' if i.status == 'closed' }}">
+    <td class="nowrap muted">{{ i.id }}</td>
+    <td><a href="/it/incidents/{{ i.id }}"><strong>{{ i.title }}</strong></a>{% if i.systems %}<div class="muted small">{{ i.systems }}</div>{% endif %}</td>
+    <td class="nowrap {{ 'overdue' if i.severity in ('high', 'critical') and i.status != 'closed' }}">{{ severity_labels[i.severity] }}</td>
+    <td class="nowrap">{{ status_labels[i.status] }}</td>
+    <td class="nowrap">{{ i.detected_on }}</td>
+    <td class="nowrap">{{ i.closed_on or '—' }}</td>
+    <td>{{ i.lead or '—' }}</td>
+    <td class="row nowrap">
+      <a class="small" href="/it/incidents/{{ i.id }}/edit">Edit</a>
+      <form method="post" action="/it/incidents/{{ i.id }}/delete" data-confirm="Delete incident #{{ i.id }}? Closed incidents are usually kept for the record."><button class="danger-link">✕</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted empty">No incidents match.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -155,6 +155,35 @@ List who to call, in order, with a backup for each role.
 ## Testing
 Test one scenario per quarter. Record the date, what was tested, and what broke.
 """),
+    ("ir", "Incident Response Plan", """# Incident Response Plan
+
+## Severity levels
+| Level | Meaning | Response |
+|---|---|---|
+| Critical | Client data exposed, ransomware, or a live attacker inside | All hands now. Notify affected clients within the contract window. |
+| High | Compromised account or device, malware contained to one host | Lead assigned within 1 hour. Work it to closure today. |
+| Medium | Phishing that got clicks, lost device with encryption, policy breach | Same business day. |
+| Low | Blocked phishing, scanner noise, minor misconfiguration | Log it. Review weekly. |
+
+## Steps
+1. **Detect and log.** Open an incident in the log with severity, what was seen, and when.
+2. **Contain.** Isolate the device or disable the account. Do not wipe anything yet.
+3. **Preserve evidence.** Screenshots, log exports, disk image if the severity warrants it. Note who collected what and when in the timeline.
+4. **Eradicate.** Remove the cause: rotate credentials, remove malware, patch, rebuild from the New Device Build runbook if trust is gone.
+5. **Recover.** Restore service. Watch the affected system closely for 72 hours.
+6. **Close and learn.** Fill in Lessons learned. Update the policy or runbook that would have prevented it.
+
+## Who to call
+| Role | Primary | Backup |
+|---|---|---|
+| Incident lead | | |
+| Client contact | | |
+| Legal / insurance | | |
+
+## Notification
+- Clients: per the engagement contract. Default is within 24 hours of confirming their data was involved.
+- Cyber insurance: check the policy for the reporting window before touching anything the insurer may want preserved.
+"""),
     ("dr", "Backup Inventory", """# Backup Inventory
 
 What is backed up, where it goes, and when it was last proven to restore.

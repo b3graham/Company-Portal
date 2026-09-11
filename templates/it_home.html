@@ -27,9 +27,38 @@
     <div class="stat-label">Docs still in draft</div><div class="stat-value">{{ drafts }}</div></a>
   <a class="card stat" href="/it/vendors" style="text-decoration:none">
     <div class="stat-label">Vendors on file</div><div class="stat-value">{{ n_vendors }}</div></a>
+  <a class="card stat" href="/it/incidents" style="text-decoration:none">
+    <div class="stat-label">Open incidents</div>
+    <div class="stat-value {{ 'overdue' if incidents }}">{{ incidents | length }}</div></a>
+  <a class="card stat" href="/it/access" style="text-decoration:none">
+    <div class="stat-label">Access not reviewed in 90 days</div>
+    <div class="stat-value {{ 'overdue' if access.unreviewed }}">{{ access.unreviewed or 0 }}</div></a>
+  <a class="card stat" href="/it/access" style="text-decoration:none">
+    <div class="stat-label">Access held by deactivated users</div>
+    <div class="stat-value {{ 'overdue' if access.orphaned }}">{{ access.orphaned or 0 }}</div></a>
+  <a class="card stat" href="/it/backups" style="text-decoration:none">
+    <div class="stat-label">Backups with restore test overdue</div>
+    <div class="stat-value {{ 'overdue' if backups_due }}">{{ backups_due }}</div></a>
 </div>
 
 <div class="chart-grid">
+  {% if incidents %}
+  <div class="card">
+    <div class="card-head"><h2>🚨 Open incidents</h2><a class="small" href="/it/incidents">incident log</a></div>
+    <table class="list">
+      <tr><th>Incident</th><th>Severity</th><th>Status</th><th>Lead</th></tr>
+      {% for i in incidents %}
+      <tr>
+        <td><a href="/it/incidents/{{ i.id }}">#{{ i.id }} {{ i.title }}</a><div class="muted small">detected {{ i.detected_on }}</div></td>
+        <td class="nowrap {{ 'overdue' if i.severity in ('high', 'critical') }}">{{ i.severity | capitalize }}</td>
+        <td class="nowrap">{{ i.status | capitalize }}</td>
+        <td>{{ i.lead or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
   <div class="card">
     <div class="card-head"><h2>🔑 Renewals due soon</h2><a class="small" href="/it/licenses">all licenses</a></div>
     {% if renewals %}

@@ -12,7 +12,7 @@ from .web import page
 
 router = APIRouter()
 
-SECTIONS = ["policies", "runbooks", "dr"]
+SECTIONS = ["policies", "runbooks", "dr", "ir"]
 SECTION_META = {
     "policies": {"label": "Policies & standards", "icon": "📜",
                  "blurb": "Rules everyone follows: acceptable use, passwords and MFA, "
@@ -20,8 +20,18 @@ SECTION_META = {
     "runbooks": {"label": "Runbooks", "icon": "🧭",
                  "blurb": "Step-by-step how-tos: VPN setup, new device build, MFA enrollment."},
     "dr": {"label": "Disaster recovery", "icon": "🛟",
-           "blurb": "What comes back first, how, and from where. Backup inventory and test log."},
+           "blurb": "What comes back first, how, and from where. Pairs with the Backups tab."},
+    "ir": {"label": "Incident response plan", "icon": "📕",
+           "blurb": "Severity levels, response steps, who to call, notification rules. "
+                    "The incident log itself lives on the Incidents tab."},
 }
+
+
+def _tab(section):
+    """Which IT tab lights up for a docs section (the IR plan sits under Incidents)."""
+    return "incidents" if section == "ir" else section
+
+
 DOC_STATUSES = ["draft", "active", "retired"]
 DOC_STATUS_LABELS = {"draft": "Draft", "active": "Active", "retired": "Retired"}
 
@@ -72,14 +82,14 @@ def docs_list(request: Request, section: str, q: str = "", show: str = "current"
             WHERE {' AND '.join(where)}
             ORDER BY CASE d.status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END, d.title""",
         tuple(args))
-    return page(request, "it_docs.html", user=user, tab=section, rows=rows, q=q, show=show,
+    return page(request, "it_docs.html", user=user, tab=_tab(section), rows=rows, q=q, show=show,
                 **_ctx(section))
 
 
 @router.get("/it/docs/{section}/new")
 def doc_new_form(request: Request, section: str, user=Depends(require_it)):
     section = _section(section)
-    return page(request, "it_doc_edit.html", user=user, tab=section, doc=None, **_ctx(section))
+    return page(request, "it_doc_edit.html", user=user, tab=_tab(section), doc=None, **_ctx(section))
 
 
 @router.post("/it/docs/{section}/new")
@@ -104,14 +114,14 @@ def doc_view(request: Request, doc_id: int, user=Depends(require_it)):
         """SELECT v.id, v.saved_at, u.name AS author FROM it_doc_versions v
            LEFT JOIN users u ON u.id = v.saved_by WHERE v.doc_id = ? ORDER BY v.id DESC""",
         (doc_id,))
-    return page(request, "it_doc_view.html", user=user, tab=doc["section"], doc=doc,
+    return page(request, "it_doc_view.html", user=user, tab=_tab(doc["section"]), doc=doc,
                 versions=versions, **_ctx(doc["section"]))
 
 
 @router.get("/it/doc/{doc_id}/edit")
 def doc_edit_form(request: Request, doc_id: int, user=Depends(require_it)):
     doc = _get_doc(doc_id)
-    return page(request, "it_doc_edit.html", user=user, tab=doc["section"], doc=doc,
+    return page(request, "it_doc_edit.html", user=user, tab=_tab(doc["section"]), doc=doc,
                 **_ctx(doc["section"]))
 
 
@@ -162,7 +172,7 @@ def doc_version_view(request: Request, doc_id: int, version_id: int, user=Depend
            WHERE v.id = ? AND v.doc_id = ?""", (version_id, doc_id))
     if not version:
         raise HTTPException(404, "version not found")
-    return page(request, "it_doc_version.html", user=user, tab=doc["section"], doc=doc,
+    return page(request, "it_doc_version.html", user=user, tab=_tab(doc["section"]), doc=doc,
                 version=version, **_ctx(doc["section"]))
 
 

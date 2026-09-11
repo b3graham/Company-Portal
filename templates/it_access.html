@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Accounts & access · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Accounts &amp; access</h1>
+  <a class="button secondary" href="/it/access/export/access.csv{{ qs }}">⬇ CSV</a>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<p class="muted small">Who holds access to what. Review each person's list every {{ review_days }} days, and use the person filter as the offboarding checklist when someone leaves. No passwords here, ever.</p>
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">Active grants</div><div class="stat-value">{{ stats.active or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">People</div><div class="stat-value">{{ stats.people or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Systems</div><div class="stat-value">{{ stats.systems or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Without MFA</div><div class="stat-value {{ 'overdue' if stats.no_mfa }}">{{ stats.no_mfa or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Not reviewed in {{ review_days }} days</div><div class="stat-value {{ 'overdue' if stats.unreviewed }}">{{ stats.unreviewed or 0 }}</div></div>
+  <div class="card stat"><div class="stat-label">Held by deactivated users</div><div class="stat-value {{ 'overdue' if stats.orphaned }}">{{ stats.orphaned or 0 }}</div></div>
+</div>
+
+<details class="composer">
+  <summary>＋ Record access</summary>
+  <form method="post" action="/it/access/add" class="stack">
+    <div class="field-grid">
+      <label>Portal user
+        <select name="user_id">
+          <option value="">— not a portal user —</option>
+          {% for p in users %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>…or outside person <input type="text" name="person" placeholder="Contractor, vendor rep"></label>
+      <label>System <input type="text" name="system" list="systems" placeholder="Microsoft 365, VPN, GitHub…" required></label>
+      <label>Level
+        <select name="level">
+          {% for l in levels %}<option value="{{ l }}" {{ 'selected' if l == 'user' }}>{{ level_labels[l] }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="checkbox"><input type="checkbox" name="mfa" value="1" checked> MFA enabled</label>
+      <label>Granted <input type="date" name="granted" value="{{ today }}"></label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional) — why they need it, ticket, expiry">
+    <button class="primary">Record</button>
+  </form>
+</details>
+<datalist id="systems">{% for s in systems %}<option value="{{ s }}">{% endfor %}</datalist>
+
+<form method="get" action="/it/access" class="filterbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search person, system, notes…" class="filter-entity">
+  <select name="person" class="filter-entity">
+    <option value="">All people</option>
+    {% for p in persons %}<option value="{{ p }}" {{ 'selected' if person == p }}>{{ p }}</option>{% endfor %}
+  </select>
+  <select name="system" class="filter-entity">
+    <option value="">All systems</option>
+    {% for s in systems %}<option value="{{ s }}" {{ 'selected' if system == s }}>{{ s }}</option>{% endfor %}
+  </select>
+  <select name="show" class="filter-entity">
+    <option value="active" {{ 'selected' if show != 'all' }}>Active only</option>
+    <option value="all" {{ 'selected' if show == 'all' }}>Include revoked</option>
+  </select>
+  <button>Apply</button>
+  <span class="push-right small muted"><strong>{{ n }}</strong> shown</span>
+</form>
+
+{% for g in groups %}
+<div class="card">
+  <div class="card-head">
+    <h2>{{ g.who }}
+      {% if g.user_id %}<span class="badge">portal user</span>{% else %}<span class="badge">external</span>{% endif %}
+      {% if g.user_id and not g.user_active %}<span class="badge" style="background:#fbeeec;color:var(--danger)">deactivated — revoke below</span>{% endif %}
+    </h2>
+    <div class="row">
+      <form method="post" action="/it/access-review">
+        <input type="hidden" name="user_id" value="{{ g.user_id or '' }}"><input type="hidden" name="person" value="{{ g.person }}">
+        <button class="small">✓ Reviewed today</button>
+      </form>
+      <form method="post" action="/it/access-offboard" data-confirm="Revoke ALL active access for {{ g.who }}?">
+        <input type="hidden" name="user_id" value="{{ g.user_id or '' }}"><input type="hidden" name="person" value="{{ g.person }}">
+        <button class="danger-link">Revoke all (offboard)</button>
+      </form>
+    </div>
+  </div>
+  <table class="list">
+    <tr><th>System</th><th>Level</th><th>MFA</th><th>Granted</th><th>Last review</th><th>Notes</th><th></th></tr>
+    {% for r in g.rows %}
+    <tr class="{{ 'inactive' if r.revoked }}">
+      <td><strong>{{ r.system }}</strong>{% if r.revoked %} <span class="badge">revoked {{ r.revoked }}</span>{% endif %}</td>
+      <td class="nowrap">{{ level_labels[r.level] }}</td>
+      <td class="nowrap {{ 'overdue' if not r.mfa and not r.revoked }}">{{ '✓ yes' if r.mfa else '✗ no' }}</td>
+      <td class="nowrap">{{ r.granted or '—' }}</td>
+      <td class="nowrap {{ 'overdue' if not r.revoked and (not r.last_review or r.last_review < stale_before) }}">{{ r.last_review or 'never' }}</td>
+      <td class="small muted">{{ r.notes }}</td>
+      <td class="row nowrap">
+        {% if not r.revoked %}
+        <form method="post" action="/it/access/{{ r.id }}/reviewed"><button class="small" title="Mark reviewed today">✓</button></form>
+        <form method="post" action="/it/access/{{ r.id }}/revoke" data-confirm="Revoke {{ g.who }}'s access to {{ r.system }}?"><button class="small">Revoke</button></form>
+        {% endif %}
+        <a class="small" href="/it/access/{{ r.id }}/edit">Edit</a>
+        <form method="post" action="/it/access/{{ r.id }}/delete" data-confirm="Delete this entry entirely? Prefer Revoke to keep the record."><button class="danger-link">✕</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% else %}
+<p class="muted empty">No access recorded yet. Start with the systems everyone touches: email, password manager, VPN, file storage.</p>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Edit incident #{{ inc.id }} · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Edit incident #{{ inc.id }}</h1>
+  <a class="button" href="/it/incidents/{{ inc.id }}">← Back to incident</a>
+</div>
+
+<form method="post" action="/it/incidents/{{ inc.id }}/edit" class="stack editor">
+  <input type="text" name="title" value="{{ inc.title }}" placeholder="Title" required>
+  <div class="field-grid">
+    <label>Severity
+      <select name="severity">
+        {% for s in severities %}<option value="{{ s }}" {{ 'selected' if s == inc.severity }}>{{ severity_labels[s] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == inc.status }}>{{ status_labels[s] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Detected on <input type="date" name="detected_on" value="{{ inc.detected_on }}"></label>
+    <label>Closed on <input type="date" name="closed_on" value="{{ inc.closed_on }}"></label>
+    <label>Incident lead
+      <select name="lead_id">
+        <option value="">—</option>
+        {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if p.id == inc.lead_id }}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Systems affected <input type="text" name="systems" value="{{ inc.systems }}"></label>
+  </div>
+  <label>Summary <input type="text" name="summary" value="{{ inc.summary }}"></label>
+  <label>Timeline (markdown, one dated line per event)</label>
+  <textarea id="editor-content" name="timeline" rows="14">{{ inc.timeline }}</textarea>
+  <div id="preview" class="md preview" hidden></div>
+  <label>Lessons learned (markdown)</label>
+  <textarea name="lessons" rows="8" placeholder="Root cause, what would have prevented it, which policy or runbook changes.">{{ inc.lessons }}</textarea>
+  <div class="row">
+    <button class="primary">Save</button>
+    <button type="button" id="preview-toggle" class="secondary">Preview timeline</button>
+    <a class="button secondary" href="/it/incidents/{{ inc.id }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

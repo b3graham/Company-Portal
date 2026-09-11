@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Backups · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Backups &amp; restore tests</h1>
+</div>
+
+{% include "_it_tabs.html" %}
+
+<p class="muted small">An untested backup is a hope, not a backup. Log a restore test for each line at least every {{ test_days }} days. Rows go red when a test is overdue or the last one did not fully pass.</p>
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-label">Backups tracked</div><div class="stat-value">{{ n_active }}</div></div>
+  <div class="card stat"><div class="stat-label">Restore test overdue</div><div class="stat-value {{ 'overdue' if n_due }}">{{ n_due }}</div></div>
+  <div class="card stat"><div class="stat-label">Last test not a pass</div><div class="stat-value {{ 'overdue' if n_failed }}">{{ n_failed }}</div></div>
+  <div class="card stat"><div class="stat-label">With an off-site copy</div><div class="stat-value">{{ n_offsite }} / {{ n_active }}</div></div>
+</div>
+
+<details class="composer">
+  <summary>＋ Add a backup</summary>
+  <form method="post" action="/it/backups/add" class="stack">
+    <div class="field-grid">
+      <label>System <input type="text" name="system" placeholder="Company portal data/" required></label>
+      <label>Method <input type="text" name="method" placeholder="tar via cron, Time Machine, provider snapshot…"></label>
+      <label>Frequency <input type="text" name="frequency" placeholder="Nightly"></label>
+      <label>Retention <input type="text" name="retention" placeholder="30 days"></label>
+      <label>Location <input type="text" name="location" placeholder="VPS /root/backups"></label>
+      <label class="checkbox"><input type="checkbox" name="offsite" value="1"> Copy exists off the source machine</label>
+      <label>Owner
+        <select name="owner_id">
+          <option value="">—</option>
+          {% for p in people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <input type="text" name="notes" placeholder="Notes (optional) — restore command, where the key lives">
+    <button class="primary">Add backup</button>
+  </form>
+</details>
+
+<form method="get" action="/it/backups" class="filterbar">
+  <select name="show" class="filter-entity">
+    <option value="active" {{ 'selected' if show != 'all' }}>Active backups</option>
+    <option value="all" {{ 'selected' if show == 'all' }}>Include retired</option>
+  </select>
+  <button>Apply</button>
+</form>
+
+<div style="overflow-x: auto">
+<table class="list">
+  <tr><th>System</th><th>Method</th><th>Frequency</th><th>Retention</th><th>Location</th><th>Owner</th><th>Last restore test</th><th>Log a test</th><th></th></tr>
+  {% for b in rows %}
+  {% set overdue = b.active and (not b.last_test or b.last_test < due_before) %}
+  {% set bad = b.active and b.last_result in ('fail', 'partial') %}
+  <tr class="{{ 'inactive' if not b.active }}">
+    <td><strong>{{ b.system }}</strong>{% if not b.active %} <span class="badge">retired</span>{% endif %}{% if b.notes %}<div class="muted small">{{ b.notes }}</div>{% endif %}</td>
+    <td>{{ b.method or '—' }}</td>
+    <td class="nowrap">{{ b.frequency or '—' }}</td>
+    <td class="nowrap">{{ b.retention or '—' }}</td>
+    <td>{{ b.location or '—' }}{% if b.offsite %}<div class="small muted">off-site ✓</div>{% endif %}</td>
+    <td>{{ b.owner or '—' }}</td>
+    <td class="nowrap {{ 'overdue' if overdue or bad }}">
+      {% if b.last_test %}{{ b.last_test }} · {{ result_labels[b.last_result] }}{% else %}never{% endif %}
+      {% if overdue %}<div class="small">test overdue</div>{% endif %}
+    </td>
+    <td>
+      {% if b.active %}
+      <form method="post" action="/it/backups/{{ b.id }}/test" class="row nowrap">
+        <input type="date" name="tested_on" value="{{ today }}" style="width:auto">
+        <select name="result" style="width:auto">
+          {% for r in results %}<option value="{{ r }}">{{ result_labels[r] }}</option>{% endfor %}
+        </select>
+        <button class="small">Log</button>
+      </form>
+      {% endif %}
+    </td>
+    <td class="row nowrap">
+      <a class="small" href="/it/backups/{{ b.id }}/edit">Edit / history</a>
+      <form method="post" action="/it/backups/{{ b.id }}/delete" data-confirm="Delete {{ b.system }} and its test history?"><button class="danger-link">✕</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="muted empty">Nothing tracked yet. Start with the portal database, workstations, email, and the password manager export.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

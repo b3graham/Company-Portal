@@ -441,6 +441,103 @@ check("delete doc cascades versions",
       and db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 0)
 check("home counts drafts", "Docs still in draft" in client.get("/it").text)
 
+# ---------- IT: accounts & access ----------
+check("IR plan seeded", "Incident Response Plan" in client.get("/it/docs/ir").text)
+check("access page", client.get("/it/access").status_code == 200)
+r = client.post("/it/access/add", data={"user_id": uid1, "system": "Email", "level": "admin",
+                                        "mfa": "1", "granted": "2026-01-01"}, follow_redirects=False)
+check("add grant (user)", r.status_code == 303, r.text[:300])
+r = client.post("/it/access/add", data={"person": "Outside Contractor", "system": "VPN",
+                                        "level": "user"}, follow_redirects=False)
+check("add grant (external, no mfa)", r.status_code == 303, r.text[:300])
+check("grant needs a who", client.post("/it/access/add", data={"system": "x"}).status_code == 422)
+check("bad level", client.post("/it/access/add", data={"user_id": uid1, "system": "x", "level": "root"}).status_code == 422)
+r = client.get("/it/access")
+check("grants grouped by person", "Outside Contractor" in r.text and "Email" in r.text and "✗ no" in r.text)
+check("person filter", "<h2>Earl" not in client.get("/it/access?person=Outside+Contractor").text)
+check("system filter", "<h2>Outside Contractor" not in client.get("/it/access?system=Email").text)
+gid = db.query_one("SELECT id FROM access_grants WHERE system='VPN'")["id"]
+r = client.post(f"/it/access/{gid}/edit", data={"person": "Outside Contractor", "system": "VPN",
+                                                "level": "readonly", "mfa": "1", "last_review": "2020-01-01"},
+                follow_redirects=False)
+check("edit grant", r.status_code == 303 and "Read-only" in client.get("/it/access").text)
+check("stale review flagged", "2020-01-01" in client.get("/it/access").text)
+client.post(f"/it/access/{gid}/reviewed")
+check("mark grant reviewed", db.query_one("SELECT last_review FROM access_grants WHERE id=?", (gid,))["last_review"] == _date.today().isoformat())
+r = client.post("/it/access-review", data={"user_id": uid1}, follow_redirects=False)
+check("person reviewed", r.status_code == 303)
+client.post(f"/it/access/{gid}/revoke")
+check("revoke hides by default", "<strong>VPN</strong>" not in client.get("/it/access").text
+      and "<strong>VPN</strong>" in client.get("/it/access?show=all").text)
+r = client.post("/it/access-offboard", data={"user_id": uid1}, follow_redirects=False)
+check("offboard revokes all", r.status_code == 303
+      and db.query_one("SELECT COUNT(*) AS n FROM access_grants WHERE user_id=? AND revoked=''", (uid1,))["n"] == 0)
+r = client.get("/it/access/export/access.csv?show=all")
+check("access csv", r.status_code == 200 and "Outside Contractor" in r.text)
+check("member blocked from access", member.get("/it/access").status_code == 403)
+client.post(f"/it/access/{gid}/delete")
+check("delete grant", db.query_one("SELECT 1 FROM access_grants WHERE id=?", (gid,)) is None)
+
+# ---------- IT: backups ----------
+check("backups page", client.get("/it/backups").status_code == 200)
+r = client.post("/it/backups/add", data={"system": "Portal data", "method": "tar", "frequency": "Nightly",
+                                         "retention": "30 days", "location": "VPS", "offsite": "1",
+                                         "owner_id": uid1}, follow_redirects=False)
+check("add backup", r.status_code == 303, r.text[:300])
+r = client.get("/it/backups")
+check("backup listed and overdue", "Portal data" in r.text and '<div class="small">test overdue</div>' in r.text)
+bid = db.query_one("SELECT id FROM backups WHERE system='Portal data'")["id"]
+r = client.post(f"/it/backups/{bid}/test", data={"result": "pass", "notes": "restored to temp"}, follow_redirects=False)
+check("log restore test", r.status_code == 303)
+check("bad result", client.post(f"/it/backups/{bid}/test", data={"result": "meh"}).status_code == 422)
+r = client.get("/it/backups")
+check("no longer overdue", '<div class="small">test overdue</div>' not in r.text and "· Pass" in r.text)
+client.post(f"/it/backups/{bid}/test", data={"result": "fail", "notes": "checksum mismatch"})
+check("failed test flagged", "Fail" in client.get("/it/backups").text)
+r = client.get(f"/it/backups/{bid}/edit")
+check("history shown", "restored to temp" in r.text and "checksum mismatch" in r.text)
+tid_ = db.query_one("SELECT id FROM backup_tests WHERE result='fail'")["id"]
+client.post(f"/it/backups/tests/{tid_}/delete")
+check("delete test", db.query_one("SELECT 1 FROM backup_tests WHERE id=?", (tid_,)) is None)
+r = client.post(f"/it/backups/{bid}/edit", data={"system": "Portal data", "active": ""}, follow_redirects=False)
+check("retire backup", r.status_code == 303 and "Portal data" not in client.get("/it/backups").text
+      and "Portal data" in client.get("/it/backups?show=all").text)
+check("member blocked from backups", member.get("/it/backups").status_code == 403)
+client.post(f"/it/backups/{bid}/delete")
+check("delete backup cascades", db.query_one("SELECT COUNT(*) AS n FROM backup_tests WHERE backup_id=?", (bid,))["n"] == 0)
+
+# ---------- IT: incidents ----------
+check("incidents page", client.get("/it/incidents").status_code == 200)
+check("IR plan linked", "Incident Response Plan" in client.get("/it/incidents").text)
+r = client.post("/it/incidents/add", data={"title": "Phish click", "severity": "high",
+                                           "lead_id": uid1, "systems": "Mailbox",
+                                           "summary": "User clicked a link"}, follow_redirects=False)
+check("open incident", r.status_code == 303 and r.headers["location"].startswith("/it/incidents/"))
+iid = int(r.headers["location"].rsplit("/", 1)[1])
+check("bad severity", client.post("/it/incidents/add", data={"title": "x", "severity": "meh"}).status_code == 422)
+r = client.get(f"/it/incidents/{iid}")
+check("incident view", "Phish click" in r.text and "Incident opened by" in r.text)
+check("open incident on IT home", "Phish click" in client.get("/it").text)
+client.post(f"/it/incidents/{iid}/note", data={"note": "Reset the password"})
+check("timeline note appended", "Reset the password" in client.get(f"/it/incidents/{iid}").text)
+client.post(f"/it/incidents/{iid}/status", data={"status": "contained"})
+check("status change logged", "Status set to Contained" in db.query_one("SELECT timeline FROM incidents WHERE id=?", (iid,))["timeline"])
+r = client.post(f"/it/incidents/{iid}/edit",
+                data={"title": "Phish click", "severity": "high", "status": "closed", "detected_on": "2026-09-01",
+                      "systems": "Mailbox", "summary": "s", "timeline": "- done", "lessons": "Train"},
+                follow_redirects=False)
+check("edit closes with date", r.status_code == 303
+      and db.query_one("SELECT closed_on FROM incidents WHERE id=?", (iid,))["closed_on"] == _date.today().isoformat())
+check("closed hidden by default", "Phish click" not in client.get("/it/incidents").text
+      and "Phish click" in client.get("/it/incidents?status=closed").text)
+check("incident search", "Phish click" in client.get("/it/incidents?status=&q=mailbox").text)
+r = client.get("/it/incidents/export/incidents.csv")
+check("incidents csv", r.status_code == 200 and "Phish click" in r.text)
+check("member blocked from incidents", member.get("/it/incidents").status_code == 403
+      and member.get(f"/it/incidents/{iid}").status_code == 403)
+client.post(f"/it/incidents/{iid}/delete")
+check("delete incident", db.query_one("SELECT 1 FROM incidents WHERE id=?", (iid,)) is None)
+
 print()
 print("ALL PASS" if not failures else f"{len(failures)} FAILURES: {failures}")
 shutil.rmtree(tmp, ignore_errors=True)
