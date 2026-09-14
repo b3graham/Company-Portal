@@ -314,6 +314,17 @@ CREATE TABLE IF NOT EXISTS it_doc_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_it_versions_doc ON it_doc_versions (doc_id, saved_at);
 
+CREATE TABLE IF NOT EXISTS it_doc_files (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id      INTEGER NOT NULL REFERENCES it_docs(id) ON DELETE CASCADE,
+    orig_name   TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    size        INTEGER NOT NULL,
+    uploaded_by INTEGER REFERENCES users(id),
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_it_doc_files_doc ON it_doc_files (doc_id);
+
 CREATE TABLE IF NOT EXISTS access_grants (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,

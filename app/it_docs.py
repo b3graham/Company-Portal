@@ -1,10 +1,14 @@
 """IT document engine: Policies & standards, Runbooks, and Disaster Recovery.
 Markdown pages with full version history plus an owner, a status, and a review date
-so stale documents surface on the IT home page. IT department only (and admins)."""
+so stale documents surface on the IT home page. Each document can also carry file
+attachments (signed PDFs, vendor docs, diagrams). IT department only (and admins)."""
+import os
+import re
+import secrets
 from datetime import date
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
 
 from . import db
 from .it import _opt_date, _opt_user, _people, require_it
@@ -31,6 +35,8 @@ def _tab(section):
     """Which IT tab lights up for a docs section (the IR plan sits under Incidents)."""
     return "incidents" if section == "ir" else section
 
+
+MAX_UPLOAD = 50 * 1024 * 1024  # 50 MB, same cap as the Docs area
 
 DOC_STATUSES = ["draft", "active", "retired"]
 DOC_STATUS_LABELS = {"draft": "Draft", "active": "Active", "retired": "Retired"}
@@ -114,8 +120,11 @@ def doc_view(request: Request, doc_id: int, user=Depends(require_it)):
         """SELECT v.id, v.saved_at, u.name AS author FROM it_doc_versions v
            LEFT JOIN users u ON u.id = v.saved_by WHERE v.doc_id = ? ORDER BY v.id DESC""",
         (doc_id,))
+    files = db.query(
+        """SELECT f.*, u.name AS uploader FROM it_doc_files f LEFT JOIN users u ON u.id = f.uploaded_by
+           WHERE f.doc_id = ? ORDER BY f.uploaded_at DESC, f.id DESC""", (doc_id,))
     return page(request, "it_doc_view.html", user=user, tab=_tab(doc["section"]), doc=doc,
-                versions=versions, **_ctx(doc["section"]))
+                versions=versions, files=files, **_ctx(doc["section"]))
 
 
 @router.get("/it/doc/{doc_id}/edit")
@@ -194,5 +203,67 @@ def doc_version_restore(doc_id: int, version_id: int, user=Depends(require_it)):
 @router.post("/it/doc/{doc_id}/delete")
 def doc_delete(doc_id: int, user=Depends(require_it)):
     doc = _get_doc(doc_id)
+    stored = [f["stored_name"] for f in db.query("SELECT stored_name FROM it_doc_files WHERE doc_id = ?", (doc_id,))]
     db.execute("DELETE FROM it_docs WHERE id = ?", (doc_id,))
+    for name in stored:
+        _unlink(name)
     return RedirectResponse(f"/it/docs/{doc['section']}?msg=Document+deleted", status_code=303)
+
+
+# ---------- attachments ----------
+
+def _unlink(stored_name: str):
+    try:
+        os.remove(os.path.join(db.UPLOAD_DIR, stored_name))
+    except FileNotFoundError:
+        pass
+
+
+def _get_file(doc_id: int, file_id: int):
+    f = db.query_one("SELECT * FROM it_doc_files WHERE id = ? AND doc_id = ?", (file_id, doc_id))
+    if not f:
+        raise HTTPException(404, "attachment not found")
+    return f
+
+
+@router.post("/it/doc/{doc_id}/files")
+async def doc_file_upload(doc_id: int, upload: UploadFile, user=Depends(require_it)):
+    _get_doc(doc_id)
+    orig = os.path.basename(upload.filename or "file")
+    ext = os.path.splitext(orig)[1]
+    if not re.fullmatch(r"\.[A-Za-z0-9]{1,10}", ext):
+        ext = ""
+    stored = secrets.token_hex(12) + ext.lower()
+    path = os.path.join(db.UPLOAD_DIR, stored)
+    size = 0
+    with open(path, "wb") as out:
+        while chunk := await upload.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_UPLOAD:
+                out.close()
+                os.remove(path)
+                raise HTTPException(413, "file exceeds 50 MB limit")
+            out.write(chunk)
+    db.execute(
+        "INSERT INTO it_doc_files (doc_id, orig_name, stored_name, size, uploaded_by) VALUES (?, ?, ?, ?, ?)",
+        (doc_id, orig, stored, size, user["id"]))
+    return RedirectResponse(f"/it/doc/{doc_id}?msg=Attached+{orig}", status_code=303)
+
+
+@router.get("/it/doc/{doc_id}/files/{file_id}")
+def doc_file_download(doc_id: int, file_id: int, user=Depends(require_it)):
+    _get_doc(doc_id)
+    f = _get_file(doc_id, file_id)
+    path = os.path.join(db.UPLOAD_DIR, f["stored_name"])
+    if not os.path.isfile(path):
+        raise HTTPException(410, "file missing from disk")
+    return FileResponse(path, filename=f["orig_name"])
+
+
+@router.post("/it/doc/{doc_id}/files/{file_id}/delete")
+def doc_file_delete(doc_id: int, file_id: int, user=Depends(require_it)):
+    _get_doc(doc_id)
+    f = _get_file(doc_id, file_id)
+    db.execute("DELETE FROM it_doc_files WHERE id = ?", (file_id,))
+    _unlink(f["stored_name"])
+    return RedirectResponse(f"/it/doc/{doc_id}?msg=Attachment+removed", status_code=303)

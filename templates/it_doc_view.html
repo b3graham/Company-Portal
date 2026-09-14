@@ -33,6 +33,28 @@
 
 <article class="card md">{{ doc.content | md | safe }}</article>
 
+<h2 class="section">Attachments</h2>
+<form method="post" action="/it/doc/{{ doc.id }}/files" enctype="multipart/form-data" class="uploadbar">
+  <input type="file" name="upload" required>
+  <button>Upload</button>
+  <span class="muted">PDFs, signed copies, diagrams · max 50 MB</span>
+</form>
+<table class="list">
+  {% for f in files %}
+  <tr>
+    <td><a href="/it/doc/{{ doc.id }}/files/{{ f.id }}">{{ f.orig_name }}</a></td>
+    <td class="meta">{{ '%.1f'|format(f.size / 1024) }} KB · {{ f.uploaded_at[:10] }} · {{ f.uploader or '—' }}</td>
+    <td>
+      <form method="post" action="/it/doc/{{ doc.id }}/files/{{ f.id }}/delete" data-confirm="Remove {{ f.orig_name }}?">
+        <button class="danger-link">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td class="muted">No attachments yet.</td></tr>
+  {% endfor %}
+</table>
+
 {% if versions | length > 1 %}
 <details>
   <summary>History ({{ versions | length }} versions)</summary>

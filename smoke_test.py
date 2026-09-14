@@ -435,7 +435,31 @@ check("retired hidden by default", "Printer reset" not in client.get("/it/docs/r
 check("retired shown with show=all", "Printer reset" in client.get("/it/docs/runbooks?show=all").text)
 check("member blocked from docs", member.get("/it/docs/policies").status_code == 403
       and member.get(f"/it/doc/{did}").status_code == 403)
+
+# attachments on IT docs
+r = client.post(f"/it/doc/{did}/files", files={"upload": ("signed policy.pdf", b"%PDF-1.4 fake", "application/pdf")},
+                follow_redirects=False)
+check("attach file", r.status_code == 303 and r.headers["location"].startswith(f"/it/doc/{did}"))
+att = db.query_one("SELECT * FROM it_doc_files WHERE doc_id=?", (did,))
+check("attachment recorded", att is not None and att["orig_name"] == "signed policy.pdf"
+      and att["stored_name"].endswith(".pdf") and att["size"] == 13)
+att_path = os.path.join(db.UPLOAD_DIR, att["stored_name"])
+check("attachment on disk", os.path.isfile(att_path))
+check("attachment listed on doc", "signed policy.pdf" in client.get(f"/it/doc/{did}?show=all").text)
+r = client.get(f"/it/doc/{did}/files/{att['id']}")
+check("attachment download", r.status_code == 200 and r.content == b"%PDF-1.4 fake"
+      and "signed" in r.headers.get("content-disposition", ""))
+check("attachment 404 on other doc", client.get(f"/it/doc/{did + 999}/files/{att['id']}").status_code == 404)
+check("member blocked from attachment", member.get(f"/it/doc/{did}/files/{att['id']}").status_code == 403)
+r = client.post(f"/it/doc/{did}/files/{att['id']}/delete", follow_redirects=False)
+check("remove attachment", r.status_code == 303 and not os.path.isfile(att_path)
+      and db.query_one("SELECT 1 FROM it_doc_files WHERE id=?", (att["id"],)) is None)
+client.post(f"/it/doc/{did}/files", files={"upload": ("diagram.png", png_bytes(), "image/png")})
+att2 = db.query_one("SELECT stored_name FROM it_doc_files WHERE doc_id=?", (did,))
+att2_path = os.path.join(db.UPLOAD_DIR, att2["stored_name"])
 client.post(f"/it/doc/{did}/delete")
+check("delete doc removes attachments",
+      db.query_one("SELECT 1 FROM it_doc_files WHERE doc_id=?", (did,)) is None and not os.path.isfile(att2_path))
 check("delete doc cascades versions",
       db.query_one("SELECT 1 FROM it_docs WHERE id=?", (did,)) is None
       and db.query_one("SELECT COUNT(*) AS n FROM it_doc_versions WHERE doc_id=?", (did,))["n"] == 0)
