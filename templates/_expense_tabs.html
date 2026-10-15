@@ -2,5 +2,6 @@
   <a href="/expenses{{ qs | default('') }}" class="{{ 'active' if tab == 'expenses' }}">💵 Expenses</a>
   <a href="/expenses/mileage{{ qs | default('') }}" class="{{ 'active' if tab == 'mileage' }}">🚗 Mileage</a>
   <a href="/expenses/dashboard{{ ('?entity=' ~ entity_id) if entity_id else '' }}" class="{{ 'active' if tab == 'dashboard' }}">📊 Dashboard</a>
+  <a href="/expenses/import" class="{{ 'active' if tab == 'import' }}">⬆ Import</a>
   <a href="/expenses/settings" class="{{ 'active' if tab == 'settings' }}">⚙️ Settings</a>
 </div>

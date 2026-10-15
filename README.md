@@ -16,6 +16,8 @@ FastAPI + SQLite + Jinja2. No external services; everything lives in `data/`.
 | Tasks `/tasks` | Kanban board (To Do / In Progress / Done) with assignees |
 | Team `/team` | Employee directory + per-user onboarding checklist (admins define the items) |
 | Links `/links` | Company start page of tools and resources, grouped by category |
+| Expenses `/expenses` | Admin only: expenses with receipts, mileage trips, dashboard, CSV and PDF reports, per-entity lists (entities, vehicles, categories, payment methods) |
+| · Import `/expenses/import` | Upload an Everlance CSV export (Trips or Transactions): preview, map business lines/categories/accounts to portal lists, filter by purpose and date, dedupe, optionally download receipt images; every import is a batch that can be undone |
 | Users `/admin/users` | Admin only: create users (temp password shown once), reset passwords, deactivate |
 | IT `/it` | IT department only (and admins). Home dashboard (warranties, renewals, docs due for review), then sub-pages: |
 | · Assets `/it/assets` | Hardware tracker: tag, serial, purchase date, cost, in-service date, assignment, warranty, lifecycle status; CSV export |

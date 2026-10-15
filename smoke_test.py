@@ -562,6 +562,34 @@ check("member blocked from incidents", member.get("/it/incidents").status_code =
 client.post(f"/it/incidents/{iid}/delete")
 check("delete incident", db.query_one("SELECT 1 FROM incidents WHERE id=?", (iid,)) is None)
 
+# Everlance import
+import re as _re
+_trips = ('==========,==========\nMade with Everlance.\nExport Type, Trips\n""\n'
+          '"Value","Miles","From","To","Date","Purpose","Tags","Business Line","Vehicle","Time Started","Time Ended","Notes"\n'
+          '$2.21,3.3,"Home Office","Camp Blanding",2026-02-10,"Work","","Guardsman","","08:39 PM","08:50 PM",""\n'
+          '$0.40,0.6,"Home Office","Kroger",2026-02-11,"Personal","","","","","",""\n'
+          '$1.00,1.5,"Home Office","Post Office",2026-02-12,"","","","","","",""\n')
+r = client.post("/expenses/import/preview", files={"upload": ("trips.csv", _trips.encode(), "text/csv")})
+check("import preview", r.status_code == 200 and "Guardsman" in r.text, r.text[:300])
+tok = _re.search(r'name="token" value="([0-9a-f]+)"', r.text).group(1)
+nat = db.query_one("SELECT id FROM expense_lists WHERE name='National Guard'")["id"]
+r = client.post("/expenses/import/commit", data={"token": tok, "purpose_mode": "work",
+                "entity__": ent, "entity__Guardsman": nat, "vehicle__": ""}, follow_redirects=False)
+check("import work trips only", "Imported+1+trips" in r.headers.get("location", ""), r.headers.get("location"))
+trip = db.query_one("SELECT * FROM mileage_trips WHERE to_place='Camp Blanding'")
+check("imported trip mapped", trip and trip["entity_id"] == nat and "08:39 PM" in trip["notes"])
+r = client.post("/expenses/import/preview", files={"upload": ("trips.csv", _trips.encode(), "text/csv")})
+tok = _re.search(r'name="token" value="([0-9a-f]+)"', r.text).group(1)
+r = client.post("/expenses/import/commit", data={"token": tok, "purpose_mode": "work",
+                "entity__": ent, "entity__Guardsman": nat, "vehicle__": ""}, follow_redirects=False)
+check("import dedupes rerun", "Imported+0+trips" in r.headers.get("location", ""), r.headers.get("location"))
+batch = db.query_one("SELECT id FROM import_batches WHERE inserted = 1")["id"]
+client.post(f"/expenses/import/{batch}/undo")
+check("import undo", db.query_one("SELECT 1 FROM mileage_trips WHERE to_place='Camp Blanding'") is None)
+check("bad import rejected",
+      client.post("/expenses/import/preview", files={"upload": ("x.csv", b"a,b\n1,2\n", "text/csv")}).status_code == 422)
+check("member blocked from import", member.get("/expenses/import").status_code == 403)
+
 print()
 print("ALL PASS" if not failures else f"{len(failures)} FAILURES: {failures}")
 shutil.rmtree(tmp, ignore_errors=True)

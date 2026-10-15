@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Preview import · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Preview: {{ filename }}</h1>
+</div>
+
+{% include "_expense_tabs.html" %}
+
+<div class="stat-grid">
+  <div class="stat"><div class="stat-value">{{ count }}</div><div class="stat-label">{{ 'trips' if kind == 'trips' else 'transactions' }} found</div></div>
+  <div class="stat"><div class="stat-value">{{ first }}</div><div class="stat-label">earliest</div></div>
+  <div class="stat"><div class="stat-value">{{ last }}</div><div class="stat-label">latest</div></div>
+  {% if kind == 'trips' %}
+  <div class="stat"><div class="stat-value">{{ '{:,}'.format(total_miles) }}</div><div class="stat-label">miles</div></div>
+  {% else %}
+  <div class="stat"><div class="stat-value">{{ total_cents | money }}</div><div class="stat-label">expenses{% if revenue_rows %} (+{{ revenue_rows }} revenue rows skipped){% endif %}</div></div>
+  {% endif %}
+</div>
+
+<form method="post" action="/expenses/import/commit" class="stack">
+  <input type="hidden" name="token" value="{{ token }}">
+
+  <div class="card">
+    <div class="card-head"><h2>What to import</h2></div>
+    <p class="muted small">Everlance purposes in this file:
+      {% for p, n in purposes %}<strong>{{ p }}</strong> ({{ n }}){{ ', ' if not loop.last }}{% endfor %}</p>
+    <div class="field-grid">
+      <label>Purpose
+        <select name="purpose_mode">
+          <option value="work">Work only</option>
+          <option value="work_unclassified">Work + Unclassified</option>
+          <option value="all">Everything, including Personal</option>
+        </select>
+      </label>
+      <label>From date <input type="date" name="start" value="{{ year_start if first < year_start else '' }}"></label>
+      <label>To date <input type="date" name="end"></label>
+    </div>
+    <label class="row"><input type="checkbox" name="allow_dupes" value="1" class="inline-check"> Import rows that already exist from an earlier import or manual entry (same date, amount/miles, and merchant/route). Repeats within this file are always kept.</label>
+    {% if has_receipts %}
+    <label class="row"><input type="checkbox" name="fetch_receipts" value="1" class="inline-check" checked> Download receipt images from the Everlance links into the portal (slower, but keeps them after you cancel)</label>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Business line → Entity</h2></div>
+    <p class="muted small">Every row needs an entity. Rows without a business line use the "(none)" mapping.</p>
+    <div class="field-grid">
+      {% for name, guess in lines %}
+      <label>{{ name or '(none)' }}
+        <select name="entity__{{ name }}" required>
+          <option value="">— choose —</option>
+          {% for e in entities %}<option value="{{ e.id }}" {{ 'selected' if e.id == guess }}>{{ e.name }}</option>{% endfor %}
+          {% if name %}<option value="new">Create entity "{{ name }}"</option>{% endif %}
+        </select>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if kind == 'trips' %}
+  <div class="card">
+    <div class="card-head"><h2>Vehicle</h2></div>
+    <div class="field-grid">
+      {% for name, guess in vehicle_names %}
+      <label>{{ name or '(no vehicle)' }}
+        <select name="vehicle__{{ name }}">
+          <option value="">— leave blank —</option>
+          {% for v in vehicles %}<option value="{{ v.id }}" {{ 'selected' if v.id == guess }}>{{ v.name }}</option>{% endfor %}
+          {% if name %}<option value="new" {{ 'selected' if not guess }}>Create vehicle "{{ name }}"</option>{% endif %}
+        </select>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="card-head"><h2>Category</h2></div>
+    <div class="field-grid">
+      {% for name, guess in category_names %}
+      <label>{{ name or '(no category)' }}
+        <select name="category__{{ name }}">
+          <option value="">— leave blank —</option>
+          {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if c.id == guess }}>{{ c.name }}</option>{% endfor %}
+          {% if name %}<option value="new" {{ 'selected' if not guess }}>Create category "{{ name }}"</option>{% endif %}
+        </select>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Bank account → Payment method</h2></div>
+    <div class="field-grid">
+      {% for name, guess in account_names %}
+      <label>{{ name or '(no account)' }}
+        <select name="account__{{ name }}">
+          <option value="">— leave blank —</option>
+          {% for p in payments %}<option value="{{ p.id }}" {{ 'selected' if p.id == guess }}>{{ p.name }}</option>{% endfor %}
+          {% if name %}<option value="new" {{ 'selected' if not guess }}>Create payment method "{{ name }}"</option>{% endif %}
+        </select>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-head"><h2>Sample rows</h2></div>
+    <table class="list">
+      {% if kind == 'trips' %}
+      <tr><th>Date</th><th>Purpose</th><th>Business line</th><th>From</th><th>To</th><th>Miles</th></tr>
+      {% for r in sample %}
+      <tr><td class="nowrap">{{ r.date }}</td><td>{{ r.purpose or 'Unclassified' }}</td><td>{{ r.business_line }}</td>
+          <td>{{ r.from_place }}</td><td>{{ r.to_place }}</td><td class="num">{{ r.miles }}</td></tr>
+      {% endfor %}
+      {% else %}
+      <tr><th>Date</th><th>Purpose</th><th>Business line</th><th>Merchant</th><th>Category</th><th>Amount</th><th>Receipt</th></tr>
+      {% for r in sample %}
+      <tr><td class="nowrap">{{ r.date }}</td><td>{{ r.purpose or 'Unclassified' }}</td><td>{{ r.business_line }}</td>
+          <td>{{ r.merchant }}</td><td>{{ r.category }}</td><td class="num">{{ r.amount_cents | money }}</td>
+          <td>{{ 'yes' if r.receipt_url else '' }}</td></tr>
+      {% endfor %}
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="row">
+    <button class="primary">Import now</button>
+    <a class="button secondary" href="/expenses/import">Cancel</a>
+  </div>
+</form>
+{% endblock %}

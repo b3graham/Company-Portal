@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Import expenses · {{ portal_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Import from Everlance</h1>
+</div>
+
+{% include "_expense_tabs.html" %}
+
+<div class="card">
+  <div class="card-head"><h2>Upload an Everlance CSV export</h2></div>
+  <p class="muted small">
+    In the Everlance web dashboard go to <strong>Data Exports → + New Export</strong>, pick the date range,
+    and download the CSV or Excel file (or grab it from the email Everlance sends). Trips exports go to Mileage,
+    Transactions exports go to Expenses. You'll get a preview and mapping step before anything is saved.
+  </p>
+  <form method="post" action="/expenses/import/preview" enctype="multipart/form-data" class="row uploadbar">
+    <input type="file" name="upload" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+    <button class="primary">Preview import</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Past imports</h2></div>
+  <table class="list">
+    <tr><th>When</th><th>File</th><th>Type</th><th>Imported</th><th>Skipped</th><th>By</th><th></th></tr>
+    {% for b in batches %}
+    <tr>
+      <td class="nowrap">{{ b.created_at }}</td>
+      <td>{{ b.filename }}</td>
+      <td>{{ 'Mileage' if b.kind == 'trips' else 'Expenses' }}</td>
+      <td class="num">{{ b.inserted }}</td>
+      <td class="num">{{ b.skipped }}</td>
+      <td>{{ b.who or '' }}</td>
+      <td class="nowrap">
+        <form method="post" action="/expenses/import/{{ b.id }}/undo" class="inline-form"
+              data-confirm="Remove all {{ b.inserted }} entries from this import?">
+          <button class="danger-link">Undo</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted empty">No imports yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

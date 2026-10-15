@@ -170,6 +170,16 @@ CREATE TABLE IF NOT EXISTS mileage_trips (
 );
 CREATE INDEX IF NOT EXISTS idx_trips_date ON mileage_trips (date);
 
+CREATE TABLE IF NOT EXISTS import_batches (
+    id         TEXT PRIMARY KEY,
+    kind       TEXT NOT NULL,
+    filename   TEXT NOT NULL DEFAULT '',
+    inserted   INTEGER NOT NULL DEFAULT 0,
+    skipped    INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS contacts (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT NOT NULL,
@@ -434,6 +444,11 @@ def init():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
         if "department" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN department TEXT NOT NULL DEFAULT ''")
+        # Migration: expenses/trips created before Everlance imports lack the batch column.
+        for table in ("expenses", "mileage_trips"):
+            cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+            if "import_batch" not in cols:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN import_batch TEXT NOT NULL DEFAULT ''")
         if not conn.execute("SELECT 1 FROM ticker_symbols LIMIT 1").fetchone():
             conn.executemany("INSERT INTO ticker_symbols (symbol, name) VALUES (?, ?)",
                              TICKER_DEFAULTS)
