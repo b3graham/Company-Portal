@@ -562,6 +562,19 @@ check("member blocked from incidents", member.get("/it/incidents").status_code =
 client.post(f"/it/incidents/{iid}/delete")
 check("delete incident", db.query_one("SELECT 1 FROM incidents WHERE id=?", (iid,)) is None)
 
+# inline "Add new…" category on the expense form
+r = client.post("/expenses/add", data={"date": "2026-08-06", "entity_id": ent, "merchant": "Harbor Freight",
+                                       "amount": "19.99", "category_id": "new", "category_new": "Welding"},
+                follow_redirects=False)
+new_cat = db.query_one("SELECT id FROM expense_lists WHERE kind='category' AND name='Welding'")
+check("add new category inline", r.status_code == 303 and new_cat is not None, r.text[:200])
+check("expense uses new category",
+      db.query_one("SELECT category_id FROM expenses WHERE merchant='Harbor Freight'")["category_id"] == new_cat["id"])
+check("empty new category rejected",
+      client.post("/expenses/add", data={"date": "2026-08-06", "entity_id": ent, "merchant": "X",
+                                         "amount": "1", "category_id": "new", "category_new": "  "}).status_code == 422)
+check("add-new option rendered", 'value="new"' in client.get("/expenses").text)
+
 # Everlance import
 import re as _re
 _trips = ('==========,==========\nMade with Everlance.\nExport Type, Trips\n""\n'

@@ -455,3 +455,5 @@ table.list td form.inline-form { display: inline; }
   background: var(--accent-soft); border-radius: 999px;
   padding: 0.1rem 0.55rem; font-size: 0.8rem;
 }
+
+.add-new-input { margin-top: 0.35rem; }

@@ -1,3 +1,15 @@
+// "Add new…" option on list selects: reveal the sibling text input and require it.
+document.addEventListener("change", (e) => {
+  const sel = e.target;
+  if (!(sel instanceof HTMLSelectElement) || !sel.dataset.addNew) return;
+  const input = sel.form && sel.form.elements[sel.dataset.addNew];
+  if (!input) return;
+  const adding = sel.value === "new";
+  input.hidden = !adding;
+  input.required = adding;
+  if (adding) input.focus();
+});
+
 // Confirm prompts for destructive forms.
 document.addEventListener("submit", (e) => {
   const msg = e.target.dataset && e.target.dataset.confirm;

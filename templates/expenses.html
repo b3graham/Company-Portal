@@ -26,10 +26,12 @@
       <label>Merchant <input type="text" name="merchant" placeholder="Where you paid" required></label>
       <label>Amount <input type="text" name="amount" inputmode="decimal" placeholder="0.00" required></label>
       <label>Category
-        <select name="category_id">
+        <select name="category_id" data-add-new="category_new">
           <option value="">—</option>
           {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          <option value="new">＋ Add new…</option>
         </select>
+        <input type="text" name="category_new" placeholder="New category name" class="add-new-input" hidden>
       </label>
       <label>Payment
         <select name="payment_id">

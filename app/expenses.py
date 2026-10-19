@@ -159,6 +159,22 @@ def _base_ctx(request):
     }
 
 
+def _resolve_category(category_id: str, category_new: str):
+    """Category select value -> id. 'new' creates the typed-in category on the fly."""
+    if category_id == "new":
+        name = category_new.strip()
+        if not name:
+            raise HTTPException(422, "type a name for the new category")
+        db.execute("INSERT OR IGNORE INTO expense_lists (kind, name) VALUES ('category', ?)", (name,))
+        row = db.query_one("SELECT id FROM expense_lists WHERE kind = 'category' AND name = ?", (name,))
+        db.execute("UPDATE expense_lists SET active = 1 WHERE id = ?", (row["id"],))
+        return row["id"]
+    cat = int(category_id) if category_id else None
+    if cat:
+        _item(cat, "category")
+    return cat
+
+
 # ---------- expenses ----------
 
 def _expense_rows(start, end, entity_id, q=""):
@@ -189,14 +205,13 @@ def expenses_list(request: Request, q: str = "", user=Depends(require_admin)):
 async def expense_add(request: Request, user=Depends(require_admin),
                       date_: str = Form(..., alias="date"), entity_id: int = Form(...),
                       merchant: str = Form(...), category_id: str = Form(""),
+                      category_new: str = Form(""),
                       payment_id: str = Form(""), amount: str = Form(...),
                       tags: str = Form(""), notes: str = Form(""),
                       receipt: UploadFile | None = File(None)):
     _item(entity_id, "entity")
-    cat = int(category_id) if category_id else None
+    cat = _resolve_category(category_id, category_new)
     pay = int(payment_id) if payment_id else None
-    if cat:
-        _item(cat, "category")
     if pay:
         _item(pay, "payment")
     stored, orig = await _save_receipt(receipt)
@@ -227,16 +242,15 @@ def expense_edit_form(request: Request, expense_id: int, user=Depends(require_ad
 async def expense_edit(expense_id: int, user=Depends(require_admin),
                        date_: str = Form(..., alias="date"), entity_id: int = Form(...),
                        merchant: str = Form(...), category_id: str = Form(""),
+                       category_new: str = Form(""),
                        payment_id: str = Form(""), amount: str = Form(...),
                        tags: str = Form(""), notes: str = Form(""),
                        remove_receipt: str = Form(""),
                        receipt: UploadFile | None = File(None)):
     exp = _get_expense(expense_id)
     _item(entity_id, "entity")
-    cat = int(category_id) if category_id else None
+    cat = _resolve_category(category_id, category_new)
     pay = int(payment_id) if payment_id else None
-    if cat:
-        _item(cat, "category")
     if pay:
         _item(pay, "payment")
     stored, orig = await _save_receipt(receipt)
