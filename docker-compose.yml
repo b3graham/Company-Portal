@@ -6,6 +6,9 @@ services:
     environment:
       - PORTAL_NAME=Stone Knight
       - SECURE_COOKIES=1
+      # Uncomment to enable the read-only CRM API (see README). Generate with:
+      #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+      # - CRM_API_TOKEN=change-me
     # Bind to localhost only — Caddy is the public entrance.
     ports:
       - "127.0.0.1:8100:8000"

@@ -76,6 +76,33 @@ finds the URL could claim the admin account.
 | `PORTAL_NAME` | `Company Portal` | Name shown in the sidebar and titles |
 | `SECURE_COOKIES` | `0` | Set `1` behind HTTPS (Caddy) so session cookies are Secure |
 | `DATA_DIR` | `./data` (or `/data` in Docker) | Where the SQLite DB and uploads live |
+| `CRM_API_TOKEN` | unset | Bearer token that enables the read-only CRM API. Unset = API off (404) |
+
+## Read-only CRM API
+
+For automation (the Paperclip Assistant agent) the portal can expose the CRM
+as JSON, GET only, under `/api/crm/`. It is off until `CRM_API_TOKEN` is set.
+The token is checked on its own: a portal session cookie does not work here,
+and the token works nowhere else. No route can create, change or delete data.
+
+```bash
+export CRM_API_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+curl -H "Authorization: Bearer $CRM_API_TOKEN" https://portal.stone-knight.com/api/crm/summary
+```
+
+| Route | Returns | Filters |
+|---|---|---|
+| `GET /api/crm/summary` | Counts by stage/status, follow-ups due today or earlier, projects due | none |
+| `GET /api/crm/contacts` | Contacts with lead/project counts | `q` (name, company, email, address, notes) |
+| `GET /api/crm/contacts/{id}` | One contact with its leads and projects | none |
+| `GET /api/crm/leads` | Leads with entity and contact names | `stage`, `open=true`, `due_by=YYYY-MM-DD` |
+| `GET /api/crm/leads/{id}` | One lead with its projects | none |
+| `GET /api/crm/projects` | Projects with entity, contact and lead names | `status`, `due_by=YYYY-MM-DD` |
+| `GET /api/crm/projects/{id}` | One project | none |
+
+List routes take `limit` (default 200, max 500) and `offset`. A bad or missing
+token returns 401; fail2ban on the VPS can key on that if you want lockouts.
+Rotate the token by changing the env var and restarting the container.
 
 ## Backups
 

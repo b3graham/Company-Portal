@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import announce, auth, challenge, crm, db, directory, docs, expenses, importer, it, it_docs, it_ops, links, news, stocks, tasks, weather
+from . import announce, auth, challenge, crm, crm_api, db, directory, docs, expenses, importer, it, it_docs, it_ops, links, news, stocks, tasks, weather
 from .auth import RequiresLogin
 from .web import PORTAL_NAME
 
@@ -35,6 +35,7 @@ app.include_router(docs.router)
 app.include_router(tasks.router)
 app.include_router(challenge.router)
 app.include_router(crm.router)
+app.include_router(crm_api.router)
 app.include_router(directory.router)
 app.include_router(expenses.router)
 app.include_router(importer.router)
