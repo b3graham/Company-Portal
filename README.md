@@ -101,7 +101,9 @@ curl -H "Authorization: Bearer $CRM_API_TOKEN" https://portal.stone-knight.com/a
 | `GET /api/crm/projects/{id}` | One project | none |
 
 List routes take `limit` (default 200, max 500) and `offset`. A bad or missing
-token returns 401; fail2ban on the VPS can key on that if you want lockouts.
+token returns 401. `deploy/fail2ban/` has a filter and jail that lock out a client
+after five of those in ten minutes, reading the Caddy JSON access log that
+`Caddyfile.example` now configures.
 Rotate the token by changing the env var and restarting the container.
 
 ## Backups

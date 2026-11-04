@@ -2,4 +2,16 @@
 # The portal has its own login system, so no basic_auth needed here.
 portal.stone-knight.com {
     reverse_proxy 127.0.0.1:8100
+
+    # JSON access log with RFC 3339 timestamps, which deploy/fail2ban reads
+    # to lock out clients that keep sending a bad token to /api/crm.
+    log {
+        output file /var/log/caddy/portal-access.log {
+            roll_size 50mb
+            roll_keep 10
+        }
+        format json {
+            time_format rfc3339
+        }
+    }
 }
