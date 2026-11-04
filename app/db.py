@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     title      TEXT NOT NULL DEFAULT '',
     email      TEXT NOT NULL DEFAULT '',
     phone      TEXT NOT NULL DEFAULT '',
+    address    TEXT NOT NULL DEFAULT '',
     notes      TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -449,6 +450,10 @@ def init():
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
             if "import_batch" not in cols:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN import_batch TEXT NOT NULL DEFAULT ''")
+        # Migration: contacts created before the address field existed.
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(contacts)")]
+        if "address" not in cols:
+            conn.execute("ALTER TABLE contacts ADD COLUMN address TEXT NOT NULL DEFAULT ''")
         if not conn.execute("SELECT 1 FROM ticker_symbols LIMIT 1").fetchone():
             conn.executemany("INSERT INTO ticker_symbols (symbol, name) VALUES (?, ?)",
                              TICKER_DEFAULTS)

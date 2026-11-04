@@ -174,7 +174,8 @@ def contacts_list(request: Request, q: str = "", user=Depends(require_user)):
     if q:
         like = f"%{q}%"
         rows = db.query("""SELECT * FROM contacts WHERE name LIKE ? OR company LIKE ?
-                           OR email LIKE ? OR notes LIKE ? ORDER BY name""", (like,) * 4)
+                           OR email LIKE ? OR address LIKE ? OR notes LIKE ? ORDER BY name""",
+                        (like,) * 5)
     else:
         rows = db.query("SELECT * FROM contacts ORDER BY name")
     lead_counts = {r["contact_id"]: r["n"] for r in db.query(
@@ -189,10 +190,13 @@ def contacts_list(request: Request, q: str = "", user=Depends(require_user)):
 @router.post("/crm/contacts/add")
 def contact_add(user=Depends(require_user),
                 name: str = Form(...), company: str = Form(""), title: str = Form(""),
-                email: str = Form(""), phone: str = Form(""), notes: str = Form("")):
+                email: str = Form(""), phone: str = Form(""), address: str = Form(""),
+                notes: str = Form("")):
     db.execute(
-        "INSERT INTO contacts (name, company, title, email, phone, notes) VALUES (?, ?, ?, ?, ?, ?)",
-        (name.strip(), company.strip(), title.strip(), email.strip(), phone.strip(), notes.strip()))
+        """INSERT INTO contacts (name, company, title, email, phone, address, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (name.strip(), company.strip(), title.strip(), email.strip(), phone.strip(),
+         address.strip(), notes.strip()))
     return RedirectResponse("/crm/contacts", status_code=303)
 
 
@@ -217,13 +221,15 @@ def contact_edit_form(request: Request, contact_id: int, user=Depends(require_us
 @router.post("/crm/contacts/{contact_id}/edit")
 def contact_edit(contact_id: int, user=Depends(require_user),
                  name: str = Form(...), company: str = Form(""), title: str = Form(""),
-                 email: str = Form(""), phone: str = Form(""), notes: str = Form("")):
+                 email: str = Form(""), phone: str = Form(""), address: str = Form(""),
+                 notes: str = Form("")):
     _get_contact(contact_id)
     db.execute(
-        """UPDATE contacts SET name = ?, company = ?, title = ?, email = ?, phone = ?, notes = ?
+        """UPDATE contacts SET name = ?, company = ?, title = ?, email = ?, phone = ?,
+           address = ?, notes = ?
            WHERE id = ?""",
         (name.strip(), company.strip(), title.strip(), email.strip(), phone.strip(),
-         notes.strip(), contact_id))
+         address.strip(), notes.strip(), contact_id))
     return RedirectResponse("/crm/contacts?msg=Contact+saved", status_code=303)
 
 

@@ -343,6 +343,7 @@ button.lose:hover { background: #fbeeec; border-color: var(--danger); }
 .list-summary { margin-bottom: 0.6rem; }
 .num { text-align: right; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
+.address { white-space: pre-line; }
 table.list td form.inline-form { display: inline; }
 
 /* stat tiles */
